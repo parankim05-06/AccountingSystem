@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # DAPAS - Digital Accounting Process Automation System
 
 A small Java Swing + SQLite accounting app: journal entries, ledger, and a 12-column worksheet.
@@ -50,3 +51,7 @@ src/service/             the rules (AuthService, JournalService) + LegacyImporte
 src/ui/                  the screens (Welcome, Login, SignUp, Home, Journal, Ledger, Columnar) + NavBar, Theme
 test/TestRunner.java     tests (no extra libraries)
 ```
+=======
+# Group-2
+with DB and basic security
+>>>>>>> 84dad5e189a2dfaa577fafe0634323f2b31a8502
