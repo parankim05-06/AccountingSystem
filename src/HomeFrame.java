@@ -1,12 +1,12 @@
-package home;
+package src;
 
-import auth.AuthService;
-import auth.SignUpFrame;
+import src.AuthService;
+import src.SignUpFrame;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.Map;
-import auth.User;
+import src.User;
 
 public class HomeFrame extends JFrame {
     private final Color BG_COLOR = new Color(248, 246, 242);       // Warm / Light Cream

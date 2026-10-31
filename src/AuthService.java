@@ -1,6 +1,6 @@
-package auth;
+package src;
 
-import home.homepage;
+import src.homepage;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;

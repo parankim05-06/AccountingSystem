@@ -1,5 +1,5 @@
-import auth.User;
-import home.HomeFrame;
+import src.User;
+import src.HomeFrame;
 import javax.swing.*;
 import java.io.File;
 import java.util.HashMap;
