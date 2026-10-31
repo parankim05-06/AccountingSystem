@@ -1,0 +1,10 @@
+# Compiled Java files
+bin/
+*.class
+
+# User data and generated journal files
+users.txt
+journal_*.txt
+
+# IDE files
+.vscode/

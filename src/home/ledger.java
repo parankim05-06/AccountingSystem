@@ -1,3 +1,4 @@
+
 package home;
 
 import javax.swing.*;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ledger extends JPanel {
+
     private journal journalRef;
     private String username;
     private JPanel containerPanel;
@@ -23,24 +25,25 @@ public class ledger extends JPanel {
     public ledger(journal journalRef, String username) {
         this.journalRef = journalRef;
         this.username = username;
+
         setLayout(new BorderLayout(10, 10));
         setBorder(new EmptyBorder(20, 20, 20, 20));
         setBackground(WARM_CREAM);
 
-        // --- TOP NAVIGATION BAR ---
+        // TOP NAVIGATION BAR
         JPanel navBar = new JPanel(new GridLayout(1, 3, 10, 0));
         navBar.setBackground(WARM_CREAM);
         navBar.setPreferredSize(new Dimension(0, 40));
 
         JButton journalTab = new JButton("JOURNAL ENTRY");
-        journalTab.setBackground(WARM_BEIGE);
-        journalTab.setForeground(TEXT_DARK);
-        journalTab.setFont(new Font("SansSerif", Font.BOLD, 12));
-        journalTab.setFocusPainted(false);
+        styleNavigationButton(journalTab);
+
         journalTab.addActionListener(e -> {
             journalRef.loadJournalsFromFile();
+
             Window window = SwingUtilities.getWindowAncestor(this);
             if (window != null) window.dispose();
+
             JFrame frame = new JFrame("Accounting System Workspace");
             frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             frame.setSize(1100, 700);
@@ -56,14 +59,14 @@ public class ledger extends JPanel {
         ledgerTab.setFocusPainted(false);
 
         JButton columnarTab = new JButton("12 COLUMNAR SHEET");
-        columnarTab.setBackground(WARM_BEIGE);
-        columnarTab.setForeground(TEXT_DARK);
-        columnarTab.setFont(new Font("SansSerif", Font.BOLD, 12));
-        columnarTab.setFocusPainted(false);
+        styleNavigationButton(columnarTab);
+
         columnarTab.addActionListener(e -> {
             journalRef.loadJournalsFromFile();
+
             Window window = SwingUtilities.getWindowAncestor(this);
             if (window != null) window.dispose();
+
             JFrame frame = new JFrame("Accounting System Workspace");
             frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             frame.setSize(1100, 700);
@@ -76,39 +79,45 @@ public class ledger extends JPanel {
         navBar.add(ledgerTab);
         navBar.add(columnarTab);
 
-        // --- HEADER ---
+        // HEADER
         JLabel moduleTitle = new JLabel("LEDGER");
         moduleTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
         moduleTitle.setForeground(DEEP_MOCHA);
 
         JButton homeBtn = new JButton("← Dashboard");
+        styleNavigationButton(homeBtn);
         homeBtn.setFont(new Font("SansSerif", Font.BOLD, 11));
-        homeBtn.setForeground(TEXT_DARK);
-        homeBtn.setBackground(WARM_BEIGE);
-        homeBtn.setFocusPainted(false);
+
         homeBtn.addActionListener(e -> {
             Window window = SwingUtilities.getWindowAncestor(this);
             if (window != null) window.dispose();
+
             new homepage(username).showDashboard();
         });
 
-        JPanel leftHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JPanel leftHeader = new JPanel(
+                new FlowLayout(FlowLayout.LEFT, 10, 0)
+        );
         leftHeader.setBackground(WARM_CREAM);
         leftHeader.add(homeBtn);
         leftHeader.add(moduleTitle);
 
-        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel filterPanel = new JPanel(
+                new FlowLayout(FlowLayout.RIGHT, 10, 0)
+        );
         filterPanel.setBackground(WARM_CREAM);
 
         JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.setBackground(DEEP_MOCHA);
-        refreshBtn.setForeground(Color.WHITE);
-        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 11));
-        refreshBtn.setFocusPainted(false);
+        stylePrimaryButton(refreshBtn);
+
         refreshBtn.addActionListener(e -> {
             journalRef.loadJournalsFromFile();
             buildLedgerTables();
-            JOptionPane.showMessageDialog(this, "Ledger refreshed with latest entries!");
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Ledger refreshed with Regular Entries only!"
+            );
         });
 
         filterPanel.add(refreshBtn);
@@ -124,7 +133,9 @@ public class ledger extends JPanel {
         topContainer.add(topHeader, BorderLayout.SOUTH);
 
         containerPanel = new JPanel();
-        containerPanel.setLayout(new BoxLayout(containerPanel, BoxLayout.Y_AXIS));
+        containerPanel.setLayout(
+                new BoxLayout(containerPanel, BoxLayout.Y_AXIS)
+        );
         containerPanel.setBackground(WARM_CREAM);
 
         JScrollPane scrollPane = new JScrollPane(containerPanel);
@@ -137,102 +148,225 @@ public class ledger extends JPanel {
         buildLedgerTables();
     }
 
+    private void styleNavigationButton(JButton button) {
+        button.setBackground(WARM_BEIGE);
+        button.setForeground(TEXT_DARK);
+        button.setFont(new Font("SansSerif", Font.BOLD, 12));
+        button.setFocusPainted(false);
+    }
+
+    private void stylePrimaryButton(JButton button) {
+        button.setBackground(DEEP_MOCHA);
+        button.setForeground(Color.WHITE);
+        button.setFont(new Font("SansSerif", Font.BOLD, 11));
+        button.setFocusPainted(false);
+    }
+
+    // BUILD LEDGER TABLES
     private void buildLedgerTables() {
         containerPanel.removeAll();
 
         Map<String, List<LedgerItem>> accountEntries = new HashMap<>();
 
+        // COLLECT REGULAR, ACTIVE JOURNAL ENTRIES ONLY
         for (journal.JournalRecord rec : journalRef.allEntries) {
+
+            // EXCLUDE VOIDED ENTRIES AND ADJUSTING ENTRIES
+            if (rec.isVoided || rec.isAdjusting) {
+                continue;
+            }
+
             for (journal.EntryLine line : rec.lines) {
-                accountEntries.putIfAbsent(line.account, new ArrayList<>());
-                accountEntries.get(line.account).add(new LedgerItem(rec.date, rec.description, line.debit, line.credit));
+
+                accountEntries.putIfAbsent(
+                        line.account,
+                        new ArrayList<>()
+                );
+
+                accountEntries.get(line.account).add(
+                        new LedgerItem(
+                                rec.date,
+                                rec.description,
+                                line.debit,
+                                line.credit
+                        )
+                );
             }
         }
 
         if (accountEntries.isEmpty()) {
-            JLabel noData = new JLabel("No ledger entries found.");
+            JLabel noData = new JLabel("No regular ledger entries found.");
             noData.setFont(new Font("SansSerif", Font.ITALIC, 14));
             containerPanel.add(noData);
+
         } else {
-            for (Map.Entry<String, List<LedgerItem>> entry : accountEntries.entrySet()) {
+
+            for (Map.Entry<String, List<LedgerItem>> entry
+                    : accountEntries.entrySet()) {
+
                 String accountTitle = entry.getKey();
                 List<LedgerItem> items = entry.getValue();
 
                 List<LedgerItem> debits = new ArrayList<>();
                 List<LedgerItem> credits = new ArrayList<>();
+
                 double totalDr = 0;
                 double totalCr = 0;
 
                 for (LedgerItem item : items) {
+
                     if (item.debit > 0) {
                         debits.add(item);
                         totalDr += item.debit;
                     }
+
                     if (item.credit > 0) {
                         credits.add(item);
                         totalCr += item.credit;
                     }
                 }
 
-                JPanel accountPanel = new JPanel(new BorderLayout(5, 5));
-                accountPanel.setBackground(Color.WHITE);
-                accountPanel.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(new Color(220, 215, 210)),
-                    new EmptyBorder(8, 10, 8, 10)
-                ));
-                accountPanel.setMaximumSize(new Dimension(920, 220));
+                JPanel accountPanel = new JPanel(
+                        new BorderLayout(5, 5)
+                );
 
-                JLabel titleLabel = new JLabel("Account Title: " + accountTitle);
-                titleLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+                accountPanel.setBackground(Color.WHITE);
+
+                accountPanel.setBorder(
+                        BorderFactory.createCompoundBorder(
+                                BorderFactory.createLineBorder(
+                                        new Color(220, 215, 210)
+                                ),
+                                new EmptyBorder(8, 10, 8, 10)
+                        )
+                );
+
+                accountPanel.setMaximumSize(
+                        new Dimension(920, 220)
+                );
+
+                JLabel titleLabel = new JLabel(
+                        "Account Title: " + accountTitle
+                );
+
+                titleLabel.setFont(
+                        new Font("SansSerif", Font.BOLD, 13)
+                );
                 titleLabel.setForeground(DEEP_MOCHA);
+
                 accountPanel.add(titleLabel, BorderLayout.NORTH);
 
-                String[] cols = {"Date", "Explanation", "Debit", "Date", "Explanation", "Credit"};
-                DefaultTableModel model = new DefaultTableModel(cols, 0);
+                String[] cols = {
+                        "Date", "Explanation", "Debit",
+                        "Date", "Explanation", "Credit"
+                };
 
-                int maxRows = Math.max(debits.size(), credits.size());
+                DefaultTableModel model =
+                        new DefaultTableModel(cols, 0) {
+                            @Override
+                            public boolean isCellEditable(int row, int column) {
+                                return false;
+                            }
+                        };
+
+                int maxRows = Math.max(
+                        debits.size(),
+                        credits.size()
+                );
+
                 for (int i = 0; i < maxRows; i++) {
-                    String drDate = i < debits.size() ? debits.get(i).date : "";
-                    String drExp = i < debits.size() ? debits.get(i).explanation : "";
-                    String drAmt = i < debits.size() ? String.format("%.2f", debits.get(i).debit) : "";
 
-                    String crDate = i < credits.size() ? credits.get(i).date : "";
-                    String crExp = i < credits.size() ? credits.get(i).explanation : "";
-                    String crAmt = i < credits.size() ? String.format("%.2f", credits.get(i).credit) : "";
+                    String drDate = i < debits.size()
+                            ? debits.get(i).date : "";
 
-                    model.addRow(new Object[]{drDate, drExp, drAmt, crDate, crExp, crAmt});
+                    String drExp = i < debits.size()
+                            ? debits.get(i).explanation : "";
+
+                    String drAmt = i < debits.size()
+                            ? String.format("%.2f", debits.get(i).debit) : "";
+
+                    String crDate = i < credits.size()
+                            ? credits.get(i).date : "";
+
+                    String crExp = i < credits.size()
+                            ? credits.get(i).explanation : "";
+
+                    String crAmt = i < credits.size()
+                            ? String.format("%.2f", credits.get(i).credit) : "";
+
+                    model.addRow(new Object[]{
+                            drDate,
+                            drExp,
+                            drAmt,
+                            crDate,
+                            crExp,
+                            crAmt
+                    });
                 }
 
+                // TOTAL ROW
                 model.addRow(new Object[]{
-                    "", "TOTAL", String.format("%.2f", totalDr),
-                    "", "", String.format("%.2f", totalCr)
+                        "",
+                        "TOTAL",
+                        String.format("%.2f", totalDr),
+                        "",
+                        "",
+                        String.format("%.2f", totalCr)
                 });
 
+                // BALANCE ROW
                 if (totalDr >= totalCr) {
+
                     double balance = totalDr - totalCr;
+
                     model.addRow(new Object[]{
-                        "", "BALANCE", String.format("%.2f", balance),
-                        "", "", ""
+                            "",
+                            "BALANCE",
+                            String.format("%.2f", balance),
+                            "",
+                            "",
+                            ""
                     });
+
                 } else {
+
                     double balance = totalCr - totalDr;
+
                     model.addRow(new Object[]{
-                        "", "BALANCE", "",
-                        "", "", String.format("%.2f", balance)
+                            "",
+                            "BALANCE",
+                            "",
+                            "",
+                            "",
+                            String.format("%.2f", balance)
                     });
                 }
 
                 JTable table = new JTable(model);
                 table.setRowHeight(20);
-                table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 11));
-                
-                DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
+
+                table.getTableHeader().setFont(
+                        new Font("SansSerif", Font.BOLD, 11)
+                );
+
+                DefaultTableCellRenderer rightAlign =
+                        new DefaultTableCellRenderer();
+
                 rightAlign.setHorizontalAlignment(JLabel.RIGHT);
-                table.getColumnModel().getColumn(2).setCellRenderer(rightAlign);
-                table.getColumnModel().getColumn(5).setCellRenderer(rightAlign);
+
+                table.getColumnModel()
+                        .getColumn(2)
+                        .setCellRenderer(rightAlign);
+
+                table.getColumnModel()
+                        .getColumn(5)
+                        .setCellRenderer(rightAlign);
 
                 JScrollPane tableScroll = new JScrollPane(table);
-                tableScroll.setPreferredSize(new Dimension(880, 100));
+                tableScroll.setPreferredSize(
+                        new Dimension(880, 100)
+                );
+
                 accountPanel.add(tableScroll, BorderLayout.CENTER);
 
                 containerPanel.add(accountPanel);
@@ -244,10 +378,20 @@ public class ledger extends JPanel {
         containerPanel.repaint();
     }
 
+    // LEDGER ITEM
     private static class LedgerItem {
-        String date, explanation;
-        double debit, credit;
-        public LedgerItem(String date, String explanation, double debit, double credit) {
+
+        String date;
+        String explanation;
+        double debit;
+        double credit;
+
+        public LedgerItem(
+                String date,
+                String explanation,
+                double debit,
+                double credit) {
+
             this.date = date;
             this.explanation = explanation;
             this.debit = debit;
