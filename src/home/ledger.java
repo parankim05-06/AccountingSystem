@@ -7,7 +7,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -99,7 +99,7 @@ public class ledger extends JPanel {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "Ledger refreshed with Regular Entries only!"
+                    "Ledger refreshed!"
             );
         });
 
@@ -169,13 +169,14 @@ public class ledger extends JPanel {
     private void buildLedgerTables() {
         containerPanel.removeAll();
 
-        Map<String, List<LedgerItem>> accountEntries = new HashMap<>();
+        Map<String, List<LedgerItem>> accountEntries = new LinkedHashMap<>();
+        Map<String, String> accountTypes = new LinkedHashMap<>();
 
-        // COLLECT REGULAR, ACTIVE JOURNAL ENTRIES ONLY
+        // COLLECT ACTIVE JOURNAL ENTRIES
         for (journal.JournalRecord rec : journalRef.allEntries) {
 
-            // EXCLUDE VOIDED ENTRIES AND ADJUSTING ENTRIES
-            if (rec.isVoided || rec.isAdjusting) {
+            // EXCLUDE VOIDED ENTRIES
+            if (rec.isVoided) {
                 continue;
             }
 
@@ -184,13 +185,18 @@ public class ledger extends JPanel {
                     continue;
                 }
                 String accName = line.account.trim().toUpperCase();
+                if (line.type != null && !line.type.trim().isEmpty()) {
+                    accountTypes.putIfAbsent(
+                            accName, line.type.trim().toUpperCase()
+                    );
+                }
                 accountEntries.putIfAbsent(accName, new ArrayList<>());
                 accountEntries.get(accName).add(new LedgerItem(rec.date, rec.description, line.debit, line.credit));
             }
         }
 
         if (accountEntries.isEmpty()) {
-            JLabel noData = new JLabel("No regular ledger entries found.");
+            JLabel noData = new JLabel("No ledger entries found.");
             noData.setFont(new Font("SansSerif", Font.ITALIC, 14));
             containerPanel.add(noData);
 
@@ -310,9 +316,18 @@ public class ledger extends JPanel {
                 });
 
                 // BALANCE ROW
-                if (totalDr >= totalCr) {
+                boolean creditNormal = isCreditNormal(
+                        accountTitle, accountTypes.get(accountTitle)
+                );
+                double accountBalance = creditNormal
+                        ? totalCr - totalDr
+                        : totalDr - totalCr;
+                double balance = Math.abs(accountBalance);
+                boolean balanceOnDebitSide = creditNormal
+                        ? accountBalance < 0
+                        : accountBalance >= 0;
 
-                    double balance = totalDr - totalCr;
+                if (balanceOnDebitSide) {
 
                     model.addRow(new Object[]{
                             "",
@@ -324,8 +339,6 @@ public class ledger extends JPanel {
                     });
 
                 } else {
-
-                    double balance = totalCr - totalDr;
 
                     model.addRow(new Object[]{
                             "",
@@ -371,6 +384,20 @@ public class ledger extends JPanel {
 
         containerPanel.revalidate();
         containerPanel.repaint();
+    }
+
+    private boolean isCreditNormal(String accountTitle, String accountType) {
+        if (accountTitle.contains("ACCUMULATED DEPRECIATION")
+                || accountTitle.contains("ACCUMULATED AMORTIZATION")
+                || accountTitle.contains("ALLOWANCE")) {
+            return true;
+        }
+
+        return "LIABILITY".equals(accountType)
+                || "EQUITY".equals(accountType)
+                || "CAPITAL".equals(accountType)
+                || "REVENUE".equals(accountType)
+                || "INCOME".equals(accountType);
     }
 
     // LEDGER ITEM
