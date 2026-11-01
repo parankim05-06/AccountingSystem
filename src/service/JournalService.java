@@ -21,6 +21,7 @@ import java.util.Map;
  * Rules enforced here:
  *   - an entry needs a date, a description and at least two lines
  *   - every line needs an account and EITHER a debit OR a credit
+ *   - debit and credit accounts must be different
  *   - total debits must equal total credits
  *   - a DRAFT can be posted once; a POSTED entry cannot be posted again
  * The ledger and the worksheet are built ONLY from POSTED entries.
@@ -43,6 +44,7 @@ public class JournalService {
         validate(entry);
         entry.setStatus(JournalEntry.DRAFT);
         entry.setCreatedAt(LocalDateTime.now().withNano(0).toString());
+
         try {
             return journalDAO.insert(entry);
         } catch (SQLException e) {
@@ -54,13 +56,16 @@ public class JournalService {
     public void postEntry(int entryId) throws AppException {
         try {
             JournalEntry entry = journalDAO.findById(entryId);
+
             if (entry == null) {
                 throw new AppException("That journal entry could not be found.");
             }
+
             if (JournalEntry.POSTED.equals(entry.getStatus())) {
                 throw new AppException("This journal entry has already been posted.");
             }
-            validate(entry); // check again, using what is really stored in the database
+
+            validate(entry);
 
             if (journalDAO.markPosted(entryId) == 0) {
                 throw new AppException("This journal entry has already been posted.");
@@ -82,40 +87,36 @@ public class JournalService {
     public List<JournalEntry> getRecentEntries(int count) throws AppException {
         List<JournalEntry> all = getAllEntries();
         List<JournalEntry> newestFirst = new ArrayList<>();
+
         for (int i = all.size() - 1; i >= 0 && newestFirst.size() < count; i--) {
             newestFirst.add(all.get(i));
         }
+
         return newestFirst;
     }
 
     /**
      * The ledger: posted lines grouped by account.
-     * The key is the account label ("1000 - Cash"); the value is that account's lines.
-     * LinkedHashMap keeps the accounts in the order the database returned them.
      */
     public Map<String, List<JournalLine>> getLedger() throws AppException {
         Map<String, List<JournalLine>> ledger = new LinkedHashMap<>();
+
         try {
             for (JournalLine line : journalDAO.findPostedLines()) {
-                String accountLabel = line.getAccountCode() + " - " + line.getAccountName();
+                String accountLabel =
+                        line.getAccountCode() + " - " + line.getAccountName();
+
                 ledger.computeIfAbsent(accountLabel, key -> new ArrayList<>()).add(line);
             }
         } catch (SQLException e) {
             throw new AppException("Unable to load the ledger. Please try again.", e);
         }
+
         return ledger;
     }
 
     /**
-     * The 12-column worksheet, calculated from the same posted lines.
-     * Steps for each account:
-     *   1. balance = total debits - total credits
-     *      positive -> it is a DEBIT balance, negative -> a CREDIT balance
-     *   2. there are no adjusting entries yet, so Adjusted = Trial Balance
-     *   3. copy the balance to ONE statement, depending on the account type:
-     *        Revenue/Expense -> Income Statement,  Equity -> Owner's Equity,
-     *        Asset/Liability -> Balance Sheet
-     * The last row is the TOTAL row.
+     * The 12-column worksheet, calculated from posted lines.
      */
     public List<WorksheetRow> getWorksheet() throws AppException {
         List<WorksheetRow> rows = new ArrayList<>();
@@ -125,24 +126,28 @@ public class JournalService {
         try {
             for (JournalLine account : journalDAO.findPostedTotalsByAccount()) {
                 long balance = account.getDebit() - account.getCredit();
+
                 long debitBalance = balance > 0 ? balance : 0;
                 long creditBalance = balance < 0 ? -balance : 0;
 
                 WorksheetRow row = new WorksheetRow();
                 row.accountName = account.getAccountName();
+
                 row.trialDebit = debitBalance;
                 row.trialCredit = creditBalance;
+
                 row.adjustedDebit = debitBalance;
                 row.adjustedCredit = creditBalance;
 
                 String type = account.getAccountType();
+
                 if (type.equals("Revenue") || type.equals("Expense")) {
                     row.incomeDebit = debitBalance;
                     row.incomeCredit = creditBalance;
                 } else if (type.equals("Equity")) {
                     row.equityDebit = debitBalance;
                     row.equityCredit = creditBalance;
-                } else { // Asset or Liability
+                } else {
                     row.balanceDebit = debitBalance;
                     row.balanceCredit = creditBalance;
                 }
@@ -159,42 +164,90 @@ public class JournalService {
     }
 
     private void addToTotal(WorksheetRow total, WorksheetRow row) {
-        total.trialDebit += row.trialDebit;       total.trialCredit += row.trialCredit;
-        total.adjustDebit += row.adjustDebit;     total.adjustCredit += row.adjustCredit;
-        total.adjustedDebit += row.adjustedDebit; total.adjustedCredit += row.adjustedCredit;
-        total.incomeDebit += row.incomeDebit;     total.incomeCredit += row.incomeCredit;
-        total.equityDebit += row.equityDebit;     total.equityCredit += row.equityCredit;
-        total.balanceDebit += row.balanceDebit;   total.balanceCredit += row.balanceCredit;
+        total.trialDebit += row.trialDebit;
+        total.trialCredit += row.trialCredit;
+
+        total.adjustDebit += row.adjustDebit;
+        total.adjustCredit += row.adjustCredit;
+
+        total.adjustedDebit += row.adjustedDebit;
+        total.adjustedCredit += row.adjustedCredit;
+
+        total.incomeDebit += row.incomeDebit;
+        total.incomeCredit += row.incomeCredit;
+
+        total.equityDebit += row.equityDebit;
+        total.equityCredit += row.equityCredit;
+
+        total.balanceDebit += row.balanceDebit;
+        total.balanceCredit += row.balanceCredit;
     }
 
-    /** The accounting rules. Throws a friendly AppException for the first problem found. */
+    /** Validates a journal entry and reports the first problem found. */
     private void validate(JournalEntry entry) throws AppException {
-        if (entry.getEntryDate() == null || entry.getEntryDate().trim().isEmpty()) {
+        if (entry.getEntryDate() == null
+                || entry.getEntryDate().trim().isEmpty()) {
             throw new AppException("Please enter a date.");
         }
-        if (entry.getDescription() == null || entry.getDescription().trim().isEmpty()) {
+
+        if (entry.getDescription() == null
+                || entry.getDescription().trim().isEmpty()) {
             throw new AppException("Please enter a description.");
         }
-        if (entry.getLines().size() < 2) {
-            throw new AppException("A journal entry needs at least two lines (one debit and one credit).");
+
+        if (entry.getLines() == null || entry.getLines().size() < 2) {
+            throw new AppException(
+                    "A journal entry needs at least two lines (one debit and one credit)."
+            );
         }
+
+        Integer debitAccountId = null;
+        Integer creditAccountId = null;
 
         for (JournalLine line : entry.getLines()) {
             if (line.getAccountId() <= 0) {
                 throw new AppException("Please select an account.");
             }
+
             boolean hasDebit = line.getDebit() > 0;
             boolean hasCredit = line.getCredit() > 0;
-            if (hasDebit == hasCredit) { // both filled, or both empty
-                throw new AppException("Each line needs either a debit or a credit amount.");
+
+            if (hasDebit == hasCredit) {
+                throw new AppException(
+                        "Each line needs either a debit or a credit amount."
+                );
             }
+
+            if (hasDebit) {
+                debitAccountId = line.getAccountId();
+            }
+
+            if (hasCredit) {
+                creditAccountId = line.getAccountId();
+            }
+        }
+
+        // Double-Entry Rule Enforcer:
+        // The debit and credit accounts must be different.
+        if (debitAccountId != null
+                && creditAccountId != null
+                && debitAccountId.equals(creditAccountId)) {
+            throw new AppException(
+                    "Debit and Credit accounts must be different."
+            );
         }
 
         long totalDebit = entry.getTotalDebit();
         long totalCredit = entry.getTotalCredit();
+
         if (totalDebit != totalCredit) {
-            throw new AppException("Debit and credit totals must be equal. Debits are "
-                    + Formats.money(totalDebit) + " but credits are " + Formats.money(totalCredit) + ".");
+            throw new AppException(
+                    "Debit and credit totals must be equal. Debits are "
+                            + Formats.money(totalDebit)
+                            + " but credits are "
+                            + Formats.money(totalCredit)
+                            + "."
+            );
         }
     }
 }
