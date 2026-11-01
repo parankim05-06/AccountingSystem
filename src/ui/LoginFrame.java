@@ -111,7 +111,7 @@ public class LoginFrame extends JFrame {
             User user = authService.login(userField.getText(), new String(passField.getPassword()));
             JOptionPane.showMessageDialog(this, "Login Successful!");
             dispose();
-            new HomeFrame(user).setVisible(true);
+            new home.homepage(user.getUsername()).showDashboard();
         } catch (AppException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }

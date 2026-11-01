@@ -1,0 +1,2 @@
+1|01-11-2026|hhh|CASH,EQUITY,12.0,0.0;OWNERS EQUITY,ASSET,0.0,12.0|false||false
+2|01-10-2026|jajaja|cash,EQUITY,100.0,0.0;revenue,ASSET,0.0,100.0|false||false

@@ -166,6 +166,6 @@ public class HomeFrame extends JFrame {
 
     private void openJournal() {
         dispose();
-        new JournalFrame(user).setVisible(true);
+        new home.homepage(user.getUsername()).showDashboard();
     }
 }

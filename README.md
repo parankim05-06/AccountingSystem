@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # DAPAS - Digital Accounting Process Automation System
 
 A small Java Swing + SQLite accounting app: journal entries, ledger, and a 12-column worksheet.
@@ -34,6 +33,14 @@ SELECT * FROM journal_entries;
 SELECT * FROM journal_lines;     -- debit/credit are in CENTAVOS: 500000 = P5,000.00
 ```
 
+### Looking inside the database
+Install **DB Browser for SQLite** (free), choose *Open Database*, pick `dapas.db`. Useful queries:
+```sql
+SELECT * FROM accounts;
+SELECT * FROM journal_entries;
+SELECT * FROM journal_lines;     -- debit/credit are in CENTAVOS: 500000 = P5,000.00
+```
+
 ## Your old data
 If `users.txt` or `journal_*.txt` from the old version are in the folder you start the program from,
 they are imported once into SQLite (passwords get hashed), then renamed to `*.imported`. Nothing is deleted.
@@ -51,7 +58,3 @@ src/service/             the rules (AuthService, JournalService) + LegacyImporte
 src/ui/                  the screens (Welcome, Login, SignUp, Home, Journal, Ledger, Columnar) + NavBar, Theme
 test/TestRunner.java     tests (no extra libraries)
 ```
-=======
-# Group-2
-with DB and basic security
->>>>>>> 84dad5e189a2dfaa577fafe0634323f2b31a8502
