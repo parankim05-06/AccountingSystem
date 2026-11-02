@@ -1,0 +1,1 @@
+1|02-11-2026|dsadws|cash,ASSET,5000.0,0.0;cash payable,LIABILITY,0.0,5000.0|false||false

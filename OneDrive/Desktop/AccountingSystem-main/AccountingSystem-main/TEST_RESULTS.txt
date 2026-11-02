@@ -1,0 +1,161 @@
+DAPAS test results (run in the build sandbox, 2026-10-27)
+NOTE: the sandbox has no sqlite-jdbc jar and no network. SQL ran on the REAL system SQLite library
+through a small test-only JDBC driver, not through the xerial sqlite-jdbc jar. UI checks used real Swing
+components without opening windows (the sandbox JVM has no display library).
+
+== COMPILE (javac -Xlint:all, Java 21.0.10) ==
+compile exit code: 0
+src/ui/WelcomeFrame.java:16: warning: [serial] serializable class WelcomeFrame has no definition of serialVersionUID
+src/ui/WelcomeFrame.java:19: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+src/ui/HomeFrame.java:37: warning: [serial] serializable class HomeFrame has no definition of serialVersionUID
+src/ui/HomeFrame.java:39: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/HomeFrame.java:40: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/HomeFrame.java:46: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+src/ui/NavBar.java:19: warning: [serial] serializable class NavBar has no definition of serialVersionUID
+src/ui/NavBar.java:29: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+src/ui/SignUpFrame.java:23: warning: [serial] serializable class SignUpFrame has no definition of serialVersionUID
+src/ui/SignUpFrame.java:25: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/SignUpFrame.java:30: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+src/ui/LoginFrame.java:24: warning: [serial] serializable class LoginFrame has no definition of serialVersionUID
+src/ui/LoginFrame.java:26: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/LoginFrame.java:31: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+src/ui/LedgerFrame.java:36: warning: [serial] serializable class LedgerFrame has no definition of serialVersionUID
+src/ui/LedgerFrame.java:38: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/LedgerFrame.java:39: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/LedgerFrame.java:44: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+src/ui/JournalFrame.java:45: warning: [serial] serializable class JournalFrame has no definition of serialVersionUID
+src/ui/JournalFrame.java:47: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/JournalFrame.java:48: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/JournalFrame.java:60: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+src/ui/ColumnarFrame.java:28: warning: [serial] serializable class ColumnarFrame has no definition of serialVersionUID
+src/ui/ColumnarFrame.java:30: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/ColumnarFrame.java:31: warning: [serial] non-transient instance field of a serializable class declared with a non-serializable type
+src/ui/ColumnarFrame.java:36: warning: [this-escape] possible 'this' escape before subclass is fully initialized
+26 warnings
+classes produced: 28
+
+== ALL TESTS ==
+Money and date formatting
+  PASS  parse 1,500.50
+  PASS  parse 1500
+  PASS  parse 0.10 + 0.20 is exactly 0.30
+  PASS  format 150050
+  PASS  format 5
+  PASS  format big
+  PASS  date to ISO
+  PASS  date to display
+  PASS  reject amount 'abc'
+  PASS  reject amount ''
+  PASS  reject amount '-5'
+  PASS  reject amount '0'
+  PASS  reject amount '1.234'
+  PASS  reject amount '12 34'
+  PASS  reject date '31-02-2026'
+  PASS  reject date '2026-10-27'
+  PASS  reject date ''
+  PASS  reject date '99-99-9999'
+Database setup (SQLite initializes)
+  PASS  4 tables created
+  PASS  starter chart has 13 accounts
+  PASS  second initialize does not duplicate accounts
+  PASS  foreign key rejects a line with a missing account
+  PASS  account type CHECK rejects an invalid type
+Registration and login
+  PASS  login with the right password works
+  PASS  password is not stored in plain text
+  PASS  hash format is iterations:salt:hash
+  PASS  same password gives a different hash (salt)
+  PASS  wrong password is rejected
+  PASS  unknown user is rejected
+  PASS  duplicate username is rejected
+  PASS  empty fields are rejected
+  PASS  short password is rejected
+Journal: balanced, unbalanced, posting
+  PASS  balanced entry is saved
+  PASS  saved entry starts as DRAFT
+  PASS  entry saved with 2 lines
+  PASS  draft does NOT appear in the ledger
+  PASS  unbalanced entry is rejected
+  PASS  rejected entry saved nothing (entries)
+  PASS  rejected entry saved nothing (lines)
+  PASS  missing account is rejected
+  PASS  missing description is rejected
+  PASS  single-line entry is rejected
+  PASS  line with debit AND credit is rejected
+  PASS  posted entry has status POSTED
+  PASS  posting twice is rejected
+  PASS  posting a missing entry is rejected
+  PASS  ledger now has 2 accounts
+  PASS  ledger: Cash debit
+  PASS  ledger: Capital credit
+Transactions: failure rolls everything back
+  PASS  insert with a bad account fails
+  PASS  no half-saved entry remains
+  PASS  no half-saved line remains
+Ledger and worksheet come from the same saved data
+  PASS  Cash has 3 posted lines (draft ignored)
+  PASS  Cash total debits
+  PASS  Cash total credits
+  PASS  last worksheet row is TOTAL
+  PASS  trial balance debits = credits
+  PASS  trial balance total (630,050 Cash + 120,000 Rent)
+  PASS  Cash balance sheet debit
+  PASS  Capital in owner's equity credit
+  PASS  Revenue in income statement credit
+  PASS  Rent in income statement debit
+Importing the old text-file data
+        report: Imported 2 user(s) and 2 journal entr(ies) from the old text files (1 damaged line(s) skipped). The old files were renamed to *.imported.
+  PASS  importer reports what it did
+  PASS  old password was hashed during import
+  PASS  2 users imported
+  PASS  2 entries imported as POSTED
+  PASS  Cash was matched, not duplicated
+  PASS  unknown account 'Fees Income' was created as Revenue
+  PASS  1500.5 became exactly 150050 centavos
+  PASS  date converted to ISO
+  PASS  old users file renamed, not deleted
+  PASS  old journal file renamed, not deleted
+  PASS  running the importer again does nothing
+  PASS  still 2 entries after the second run
+
+RESULT: 74 passed, 0 failed
+
+== RESTART TEST (2 separate program runs) ==
+  PASS  data written
+RESULT: 1 passed, 0 failed
+  PASS  user is still there and can log in
+  PASS  entry is still there
+  PASS  entry is still POSTED
+  PASS  ledger still shows the amount
+  PASS  starter accounts were not added twice
+RESULT: 5 passed, 0 failed
+
+== UI CHECKS ==
+  PASS  login window shows 'Invalid username or password.'
+  PASS  sign-up window shows 'Username already exists!'
+  PASS  sign-up window creates an account
+  PASS  no account chosen -> 'Please select an account.'
+  PASS  same account twice is rejected
+  PASS  bad amount -> friendly message
+  PASS  bad date -> friendly message
+  PASS  empty description -> friendly message
+  PASS  valid entry is saved as DRAFT
+  PASS  journal table shows 2 lines for the entry
+  PASS  debit shown with peso format
+  PASS  credit shown with peso format
+  PASS  status column says DRAFT
+  PASS  POST with nothing selected -> friendly message
+  PASS  POST selected entry works
+  PASS  status column now says POSTED
+  PASS  posting twice -> 'already been posted'
+  PASS  second entry saved
+  PASS  second entry posted
+  PASS  click LEDGER tab
+  PASS  ledger window opened and journal window closed
+  PASS  ledger shows 3 accounts (Cash, Capital, Rent)
+  PASS  Cash balance = 5,000.00 - 1,200.50 = 3,799.50
+  PASS  columnar window opened
+  PASS  worksheet has 3 accounts + TOTAL
+  PASS  worksheet TOTAL row: trial debit = trial credit
+  PASS  dashboard reopened
+UI RESULT: 27 passed, 0 failed
