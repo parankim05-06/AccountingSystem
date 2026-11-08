@@ -67,8 +67,8 @@ public class HomeFrame extends JFrame {
         logoutButton.setForeground(Theme.TEXT_DARK);
         logoutButton.setFocusPainted(false);
         logoutButton.addActionListener(e -> {
-            dispose();
             new WelcomeFrame().setVisible(true);
+            dispose();
         });
 
         JPanel topBar = new JPanel(new BorderLayout());

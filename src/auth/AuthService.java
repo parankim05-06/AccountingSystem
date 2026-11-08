@@ -150,11 +150,10 @@ public class AuthService {
 
             loadUsersFromFile();
             if (userDatabase.containsKey(username) && userDatabase.get(username).checkPassword(password)) {
-            JOptionPane.showMessageDialog(frame, "Login Successful!");
-            frame.dispose();
-    
-        new homepage(username).showDashboard();
-    } else {
+                JOptionPane.showMessageDialog(frame, "Login Successful!");
+                new homepage(username).showDashboard();
+                frame.dispose();
+            } else {
                 JOptionPane.showMessageDialog(frame, "Invalid username or password.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });

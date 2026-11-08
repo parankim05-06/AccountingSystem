@@ -1,10 +1,12 @@
-
 package home;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -20,8 +22,7 @@ public class journal extends JPanel {
         public String account, type;
         public double debit, credit;
 
-        public EntryLine(String account, String type,
-                         double debit, double credit) {
+        public EntryLine(String account, String type, double debit, double credit) {
             this.account = account;
             this.type = type;
             this.debit = debit;
@@ -37,21 +38,15 @@ public class journal extends JPanel {
         public String voidReason;
         public boolean isAdjusting;
 
-        public JournalRecord(int id, String date, String description,
-                             List<EntryLine> lines) {
+        public JournalRecord(int id, String date, String description, List<EntryLine> lines) {
             this(id, date, description, lines, false, "", false);
         }
 
-        public JournalRecord(int id, String date, String description,
-                             List<EntryLine> lines, boolean isVoided,
-                             String voidReason) {
-            this(id, date, description, lines, isVoided,
-                    voidReason, false);
+        public JournalRecord(int id, String date, String description, List<EntryLine> lines, boolean isVoided, String voidReason) {
+            this(id, date, description, lines, isVoided, voidReason, false);
         }
 
-        public JournalRecord(int id, String date, String description,
-                             List<EntryLine> lines, boolean isVoided,
-                             String voidReason, boolean isAdjusting) {
+        public JournalRecord(int id, String date, String description, List<EntryLine> lines, boolean isVoided, String voidReason, boolean isAdjusting) {
             this.id = id;
             this.date = date;
             this.description = description;
@@ -69,798 +64,669 @@ public class journal extends JPanel {
     private String username;
     private DefaultTableModel tableModel;
     private JTable table;
-    private JTextField dateField;
+    private DatePicker datePicker;
 
-    private final Color WARM_CREAM =
-            new Color(248, 246, 242);
-    private final Color SOFT_CARD =
-            new Color(252, 250, 248);
-    private final Color WARM_BEIGE =
-            new Color(230, 225, 218);
-    private final Color DEEP_MOCHA =
-            new Color(92, 64, 51);
-    private final Color TEXT_DARK =
-            new Color(60, 50, 45);
+    private final String[] ACCOUNT_CHOICES = {
+        "CASH", "ACCOUNTS RECEIVABLE", "SUPPLIES", "PREPAID INSURANCE", "PREPAID RENT",
+        "EQUIPMENT", "ACCUMULATED DEPRECIATION - EQUIPMENT", "FURNITURE", "VEHICLES",
+        "ACCOUNTS PAYABLE", "UNEARNED REVENUE", "NOTES PAYABLE", "SALARIES PAYABLE",
+        "OWNER'S CAPITAL", "OWNER'S DRAWING", "SERVICE REVENUE", "EXPENSES",
+        "ADVERTISING EXPENSE", "UTILITIES EXPENSE", "SALARIES EXPENSE",
+        "MAINTENANCE EXPENSE", "PROFESSIONAL FEES EXPENSE", "REPAIRS EXPENSE",
+        "RENT EXPENSE", "INTEREST EXPENSE", "INSURANCE EXPENSE", "SUPPLIES EXPENSE",
+        "DEPRECIATION EXPENSE ACCOUNTS"
+    };
+
+    // UI Colors matching Image #9
+    private final Color SIDEBAR_BG = new Color(20, 20, 20);
+    private final Color MAIN_BG = new Color(245, 245, 245);
+    private final Color CARD_BG = Color.WHITE;
+    private final Color BORDER_COLOR = new Color(220, 220, 220);
+    private final Color TEXT_DARK = new Color(40, 40, 40);
+    private final Color TEXT_MUTED = new Color(120, 120, 120);
+    private final Color BUTTON_BLACK = new Color(10, 10, 10);
 
     public journal(String fileName) {
         this(fileName, "admin");
     }
 
     public journal(String fileName, String username) {
-
         this.currentJournalFile = fileName;
         this.username = username;
-
         loadJournalsFromFile();
 
-        setLayout(new BorderLayout(15, 15));
-        setBorder(new EmptyBorder(20, 20, 20, 20));
-        setBackground(WARM_CREAM);
+        setLayout(new BorderLayout());
+        setBackground(MAIN_BG);
 
-        // TOP NAVIGATION
-        JPanel navBar = new JPanel(
-                new GridLayout(1, 3, 10, 0)
-        );
-        navBar.setBackground(WARM_CREAM);
-        navBar.setPreferredSize(new Dimension(0, 40));
+        // Sidebar Navigation (Left)
+        add(createSidebar(), BorderLayout.WEST);
 
-        JButton journalTab = new JButton("JOURNAL ENTRY");
-        journalTab.setBackground(DEEP_MOCHA);
-        journalTab.setForeground(Color.WHITE);
-        journalTab.setFont(
-                new Font("SansSerif", Font.BOLD, 12)
-        );
-        journalTab.setFocusPainted(false);
+        // Main Content Scrollable Area
+        JPanel mainContent = new JPanel(new BorderLayout(20, 20));
+        mainContent.setBackground(MAIN_BG);
+        mainContent.setBorder(new EmptyBorder(30, 40, 30, 40));
 
-        JButton ledgerTab = new JButton("LEDGER");
-        styleNavigationButton(ledgerTab);
+        // Top Header ("Journal entry" + Refresh button)
+        mainContent.add(createTopHeader(), BorderLayout.NORTH);
 
-        ledgerTab.addActionListener(e -> {
-            loadJournalsFromFile();
-            switchView(new ledger(this, username));
+        // Center Panel holding Form + Table
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.setBackground(MAIN_BG);
+
+        centerPanel.add(createFormCard());
+        centerPanel.add(Box.createVerticalStrut(25));
+        centerPanel.add(createTableCard());
+
+        JScrollPane mainScroll = new JScrollPane(centerPanel);
+        mainScroll.setBorder(null);
+        mainScroll.getVerticalScrollBar().setUnitIncrement(16);
+        mainScroll.getViewport().setBackground(MAIN_BG);
+
+        mainContent.add(mainScroll, BorderLayout.CENTER);
+        add(mainContent, BorderLayout.CENTER);
+    }
+
+    private JPanel createSidebar() {
+        JPanel sidebar = new JPanel(new BorderLayout());
+        sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setPreferredSize(new Dimension(220, 0));
+        sidebar.setBorder(new EmptyBorder(30, 20, 30, 20));
+
+        // Logo
+        JLabel logo = new JLabel("📋 ENTRI");
+        logo.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        logo.setForeground(Color.WHITE);
+        logo.setBorder(new EmptyBorder(0, 0, 40, 0));
+
+        // Navigation Links
+        JPanel navLinks = new JPanel();
+        navLinks.setLayout(new BoxLayout(navLinks, BoxLayout.Y_AXIS));
+        navLinks.setBackground(SIDEBAR_BG);
+
+        navLinks.add(createNavLink("Dashboard", false));
+        navLinks.add(Box.createVerticalStrut(10));
+        navLinks.add(createNavLink("Journal entry", true));
+        navLinks.add(Box.createVerticalStrut(10));
+        navLinks.add(createNavLink("Ledger", false));
+        navLinks.add(Box.createVerticalStrut(10));
+        navLinks.add(createNavLink("12-column sheet", false));
+
+        JPanel topSection = new JPanel(new BorderLayout());
+        topSection.setBackground(SIDEBAR_BG);
+        topSection.add(logo, BorderLayout.NORTH);
+        topSection.add(navLinks, BorderLayout.CENTER);
+
+        // Bottom Section
+        JPanel bottomSection = new JPanel();
+        bottomSection.setLayout(new BoxLayout(bottomSection, BoxLayout.Y_AXIS));
+        bottomSection.setBackground(SIDEBAR_BG);
+
+        JLabel userLabel = new JLabel("Signed in as " + username);
+        userLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        userLabel.setForeground(new Color(180, 180, 180));
+        userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton logoutBtn = new JButton("Log out");
+        logoutBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        logoutBtn.setBackground(Color.WHITE);
+        logoutBtn.setForeground(Color.BLACK);
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.setMaximumSize(new Dimension(180, 40));
+        logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoutBtn.addActionListener(e -> {
+            new ui.LoginFrame().setVisible(true);
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window != null) window.dispose();
         });
 
-        JButton columnarTab =
-                new JButton("12 COLUMNAR SHEET");
-        styleNavigationButton(columnarTab);
+        bottomSection.add(userLabel);
+        bottomSection.add(Box.createVerticalStrut(10));
+        bottomSection.add(logoutBtn);
 
-        columnarTab.addActionListener(e -> {
-            loadJournalsFromFile();
-            switchView(new columnar(this, username));
+        sidebar.add(topSection, BorderLayout.NORTH);
+        sidebar.add(bottomSection, BorderLayout.SOUTH);
+
+        return sidebar;
+    }
+
+    private JButton createNavLink(String text, boolean active) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setMaximumSize(new Dimension(200, 45));
+        btn.setFocusPainted(false);
+        btn.setBorder(new EmptyBorder(0, 15, 0, 15));
+
+        if (active) {
+            btn.setBackground(Color.WHITE);
+            btn.setForeground(Color.BLACK);
+        } else {
+            btn.setBackground(SIDEBAR_BG);
+            btn.setForeground(new Color(180, 180, 180));
+            btn.setBorder(null);
+        }
+
+        btn.addActionListener(e -> {
+            if (text.equals("Dashboard")) {
+                new homepage(username).showDashboard();
+                Window w = SwingUtilities.getWindowAncestor(this);
+                if (w != null) w.dispose();
+            } else if (text.equals("Ledger")) {
+                switchView(new ledger(this, username));
+            } else if (text.equals("12-column sheet")) {
+                switchView(new columnar(this, username));
+            }
         });
 
-        navBar.add(journalTab);
-        navBar.add(ledgerTab);
-        navBar.add(columnarTab);
+        return btn;
+    }
 
-        // HEADER
-        JPanel topHeader = new JPanel(new BorderLayout());
-        topHeader.setBackground(WARM_CREAM);
+    private JPanel createTopHeader() {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(MAIN_BG);
 
-        JLabel moduleTitle = new JLabel("JOURNAL ENTRY");
-        moduleTitle.setFont(
-                new Font("SansSerif", Font.BOLD, 16)
-        );
-        moduleTitle.setForeground(DEEP_MOCHA);
-
-        JPanel headerRight = new JPanel(
-                new FlowLayout(FlowLayout.RIGHT, 10, 0)
-        );
-        headerRight.setBackground(WARM_CREAM);
+        JLabel title = new JLabel("Journal entry");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        title.setForeground(Color.BLACK);
 
         JButton refreshBtn = new JButton("Refresh");
-        stylePrimaryButton(refreshBtn);
-
+        refreshBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        refreshBtn.setBackground(Color.WHITE);
+        refreshBtn.setForeground(Color.BLACK);
+        refreshBtn.setFocusPainted(false);
+        refreshBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        refreshBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 180, 180), 1),
+                new EmptyBorder(8, 20, 8, 20)));
         refreshBtn.addActionListener(e -> {
             loadJournalsFromFile();
             refreshTable();
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Journal entries refreshed!"
-            );
         });
 
-        JButton homeBtn = new JButton("← Dashboard");
-        styleNavigationButton(homeBtn);
+        header.add(title, BorderLayout.WEST);
+        header.add(refreshBtn, BorderLayout.EAST);
+        return header;
+    }
 
-        homeBtn.addActionListener(e -> {
-            Window window =
-                    SwingUtilities.getWindowAncestor(this);
+    private JPanel createFormCard() {
+        JPanel card = new RoundedPanel(16, CARD_BG, BORDER_COLOR);
+        card.setLayout(new BorderLayout(15, 15));
+        card.setBorder(new EmptyBorder(25, 30, 25, 30));
 
-            if (window != null) {
-                window.dispose();
-            }
-
-            new homepage(username).showDashboard();
-        });
-
-        headerRight.add(refreshBtn);
-        headerRight.add(homeBtn);
-
-        topHeader.add(moduleTitle, BorderLayout.WEST);
-        topHeader.add(headerRight, BorderLayout.EAST);
-
-        JPanel topContainer =
-                new JPanel(new BorderLayout(0, 10));
-        topContainer.setBackground(WARM_CREAM);
-        topContainer.add(navBar, BorderLayout.NORTH);
-        topContainer.add(topHeader, BorderLayout.SOUTH);
-
-        // MAIN CARD
-        JPanel mainCard =
-                new JPanel(new BorderLayout(15, 15));
-        mainCard.setBackground(SOFT_CARD);
-
-        mainCard.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(
-                                WARM_BEIGE, 1
-                        ),
-                        new EmptyBorder(15, 20, 15, 20)
-                )
-        );
-
-        JPanel formGrid =
-                new JPanel(new GridBagLayout());
-        formGrid.setBackground(SOFT_CARD);
-
-        GridBagConstraints gbc =
-                new GridBagConstraints();
-
-        gbc.insets = new Insets(6, 8, 6, 8);
+        JPanel formGrid = new JPanel(new GridBagLayout());
+        formGrid.setBackground(CARD_BG);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 10, 8, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
 
-        dateField = new JTextField(
-                new SimpleDateFormat("dd-MM-yyyy")
-                        .format(new Date()),
-                15
-        );
+        // Date
+        datePicker = new DatePicker();
+        // Set initial date
+        datePicker.setDate(new SimpleDateFormat("dd-MM-yyyy").format(new Date()));
 
-        JTextArea descArea = new JTextArea(3, 20);
+        // Category combo
+        String[] entryOptions = {"Regular Entry", "Adjusting Entry"};
+        JComboBox<String> entryTypeCombo = new JComboBox<>(entryOptions);
+        styleComboBox(entryTypeCombo);
+
+        // Description Text Area
+        JTextArea descArea = new JTextArea(4, 20);
+        descArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         descArea.setLineWrap(true);
         descArea.setWrapStyleWord(true);
+        descArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        JScrollPane descScroll =
-                new JScrollPane(descArea);
+        JScrollPane descScroll = new JScrollPane(descArea);
+        descScroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
+        descScroll.setBackground(Color.WHITE);
 
-        JTextField drAccountField =
-                new JTextField(15);
+        // Account fields & combos
+        JComboBox<String> drAccountCombo = new JComboBox<>(ACCOUNT_CHOICES);
+        JComboBox<String> crAccountCombo = new JComboBox<>(ACCOUNT_CHOICES);
+        styleComboBox(drAccountCombo);
+        styleComboBox(crAccountCombo);
+        JTextField amtField = createStyledTextField("");
 
-        JTextField crAccountField =
-                new JTextField(15);
+        String[] accountTypes = {"ASSET", "EQUITY", "EXPENSE", "LIABILITY", "REVENUE"};
+        JComboBox<String> drTypeCombo = new JComboBox<>(accountTypes);
+        styleComboBox(drTypeCombo);
+        JComboBox<String> crTypeCombo = new JComboBox<>(accountTypes);
+        styleComboBox(crTypeCombo);
 
-        JTextField amtField =
-                new JTextField(15);
-
-        String[] accountTypes = {
-                "ASSET",
-                "EQUITY",
-                "EXPENSE",
-                "LIABILITY",
-                "REVENUE"
-        };
-
-        JComboBox<String> drTypeCombo =
-                new JComboBox<>(accountTypes);
-
-        JComboBox<String> crTypeCombo =
-                new JComboBox<>(accountTypes);
-
-        String[] entryOptions = {
-                "Regular Entry",
-                "Adjusting Entry"
-        };
-
-        JComboBox<String> entryTypeCombo =
-                new JComboBox<>(entryOptions);
-
-        // FORM ROW 0
-        gbc.gridx = 0;
+        // ROW 0: Date (col 0), Entry Category (col 1), Description (col 2, span 3 rows)
         gbc.gridy = 0;
-        gbc.weightx = 0.1;
-        gbc.gridheight = 1;
-        formGrid.add(
-                new JLabel("Date (DD-MM-YYYY):"), gbc
-        );
+        gbc.gridx = 0; gbc.weightx = 0.25; gbc.gridheight = 1;
+        formGrid.add(createFieldGroup("Date", datePicker), gbc);
 
-        gbc.gridx = 1;
-        gbc.weightx = 0.4;
-        formGrid.add(dateField, gbc);
+        gbc.gridx = 1; gbc.weightx = 0.35;
+        formGrid.add(createFieldGroup("Entry category", entryTypeCombo), gbc);
 
-        gbc.gridx = 2;
-        gbc.weightx = 0.1;
-        formGrid.add(
-                new JLabel("Entry Category:"), gbc
-        );
+        gbc.gridx = 2; gbc.weightx = 0.4; gbc.gridheight = 4;
+        formGrid.add(createFieldGroup("Description", descScroll), gbc);
 
-        gbc.gridx = 3;
-        gbc.weightx = 0.4;
-        formGrid.add(entryTypeCombo, gbc);
+        // ROW 1: Debit account (col 0), Type (col 1)
+        gbc.gridy = 1; gbc.gridheight = 1;
+        gbc.gridx = 0; gbc.weightx = 0.25;
+        formGrid.add(createFieldGroup("Debit account", drAccountCombo), gbc);
 
-        // FORM ROW 1
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.weightx = 0.1;
-        formGrid.add(
-                new JLabel("Description:"), gbc
-        );
+        gbc.gridx = 1; gbc.weightx = 0.35;
+        formGrid.add(createFieldGroup("Type", drTypeCombo), gbc);
 
-        gbc.gridx = 1;
-        gbc.weightx = 0.4;
-        gbc.gridheight = 2;
-        formGrid.add(descScroll, gbc);
-
-        gbc.gridheight = 1;
-        gbc.gridx = 2;
-        gbc.weightx = 0.1;
-        formGrid.add(
-                new JLabel("Debit Account & Type:"), gbc
-        );
-
-        JPanel drPanel =
-                new JPanel(new BorderLayout(5, 0));
-        drPanel.setBackground(SOFT_CARD);
-        drPanel.add(drAccountField, BorderLayout.CENTER);
-        drPanel.add(drTypeCombo, BorderLayout.EAST);
-
-        gbc.gridx = 3;
-        gbc.weightx = 0.4;
-        formGrid.add(drPanel, gbc);
-
-        // FORM ROW 2
-        gbc.gridx = 2;
+        // ROW 2: Credit account (col 0), Type (col 1)
         gbc.gridy = 2;
-        gbc.weightx = 0.1;
-        formGrid.add(
-                new JLabel("Credit Account & Type:"), gbc
-        );
+        gbc.gridx = 0; gbc.weightx = 0.25;
+        formGrid.add(createFieldGroup("Credit account", crAccountCombo), gbc);
 
-        JPanel crPanel =
-                new JPanel(new BorderLayout(5, 0));
-        crPanel.setBackground(SOFT_CARD);
-        crPanel.add(crAccountField, BorderLayout.CENTER);
-        crPanel.add(crTypeCombo, BorderLayout.EAST);
+        gbc.gridx = 1; gbc.weightx = 0.35;
+        formGrid.add(createFieldGroup("Type", crTypeCombo), gbc);
 
-        gbc.gridx = 3;
-        gbc.weightx = 0.4;
-        formGrid.add(crPanel, gbc);
-
-        // FORM ROW 3
-        gbc.gridx = 2;
+        // ROW 3: Amount (col 0, span 2)
         gbc.gridy = 3;
-        gbc.weightx = 0.1;
-        formGrid.add(new JLabel("Amount:"), gbc);
+        gbc.gridx = 0; gbc.gridwidth = 2; gbc.weightx = 0.6;
+        formGrid.add(createFieldGroup("Amount", amtField), gbc);
 
-        gbc.gridx = 3;
-        gbc.weightx = 0.4;
-        formGrid.add(amtField, gbc);
+        // BUTTON BAR
+        JPanel btnBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        btnBar.setBackground(CARD_BG);
+        btnBar.setBorder(new EmptyBorder(20, 0, 0, 0));
 
-        // BUTTONS
-        JPanel btnBar =
-                new JPanel(new FlowLayout(
-                        FlowLayout.RIGHT, 10, 5
-                ));
-
-        btnBar.setBackground(SOFT_CARD);
-
-        JButton clearBtn =
-                new JButton("CLEAR FORM");
-
-        JButton addBtn =
-                new JButton("ADD TRANSACTION");
-
-        JButton editBtn =
-                new JButton("EDIT SELECTED");
-
-        JButton voidBtn =
-                new JButton("VOID SELECTED");
-
-        clearBtn.setBackground(Color.WHITE);
-        clearBtn.setForeground(TEXT_DARK);
-        clearBtn.setFocusPainted(false);
-
-        stylePrimaryButton(addBtn);
-        stylePrimaryButton(editBtn);
-
-        voidBtn.setBackground(
-                new Color(150, 65, 55)
-        );
-        voidBtn.setForeground(Color.WHITE);
-        voidBtn.setFocusPainted(false);
+        JButton clearBtn = createStyledButton("Clear form", false);
+        JButton addBtn = createStyledButton("Add transaction", true);
+        JButton editBtn = createStyledButton("Edit selected", true);
+        JButton voidBtn = createStyledButton("Void selected", false);
 
         btnBar.add(clearBtn);
         btnBar.add(addBtn);
         btnBar.add(editBtn);
         btnBar.add(voidBtn);
 
-        JPanel formWrapper =
-                new JPanel(new BorderLayout());
+        card.add(formGrid, BorderLayout.CENTER);
+        card.add(btnBar, BorderLayout.SOUTH);
 
-        formWrapper.setBackground(SOFT_CARD);
-        formWrapper.add(formGrid, BorderLayout.CENTER);
-        formWrapper.add(btnBar, BorderLayout.SOUTH);
-
-        // JOURNAL TABLE
-        String[] cols = {
-                "ID",
-                "Date",
-                "Description",
-                "Entry Category",
-                "Account",
-                "Type",
-                "Debit",
-                "Credit",
-                "Status"
-        };
-
-        tableModel = new DefaultTableModel(cols, 0) {
-            @Override
-            public boolean isCellEditable(
-                    int row, int column
-            ) {
-                return false;
-            }
-        };
-
-        table = new JTable(tableModel);
-        table.setRowHeight(22);
-
-        populateExistingTableRows();
-
-        JScrollPane tableScroll =
-                new JScrollPane(table);
-
-        tableScroll.setPreferredSize(
-                new Dimension(0, 180)
-        );
-
-        mainCard.add(formWrapper, BorderLayout.NORTH);
-        mainCard.add(tableScroll, BorderLayout.CENTER);
-
-        add(topContainer, BorderLayout.NORTH);
-        add(mainCard, BorderLayout.CENTER);
-
-        // TRACK EDITING RECORD
+        // Actions
         final JournalRecord[] editingRecord = {null};
 
-        // CLEAR FORM / CANCEL EDIT
         clearBtn.addActionListener(e -> {
-
             descArea.setText("");
             amtField.setText("");
-            drAccountField.setText("");
-            crAccountField.setText("");
-
-            dateField.setText(
-                    new SimpleDateFormat("dd-MM-yyyy")
-                            .format(new Date())
-            );
-
+            drAccountCombo.setSelectedIndex(0);
+            crAccountCombo.setSelectedIndex(0);
+            datePicker.setDate(new SimpleDateFormat("dd-MM-yyyy").format(new Date()));
             entryTypeCombo.setSelectedIndex(0);
             entryTypeCombo.setEnabled(true);
-
             drTypeCombo.setSelectedIndex(0);
             crTypeCombo.setSelectedIndex(0);
-
             editingRecord[0] = null;
-            addBtn.setText("ADD TRANSACTION");
+            addBtn.setText("Add transaction");
         });
 
-        // ADD OR SAVE EDITED ADJUSTMENT
         addBtn.addActionListener(e -> {
-
             try {
-
-                String date = dateField.getText().trim();
+                String date = datePicker.getDateString();
                 String desc = descArea.getText().trim();
+                String drAcc = (String) drAccountCombo.getSelectedItem();
+                String crAcc = (String) crAccountCombo.getSelectedItem();
+                String drType = (String) drTypeCombo.getSelectedItem();
+                String crType = (String) crTypeCombo.getSelectedItem();
+                String amtText = amtField.getText().trim();
 
-                String drAcc =
-                        drAccountField.getText().trim();
-
-                String crAcc =
-                        crAccountField.getText().trim();
-
-                String drType =
-                        (String) drTypeCombo.getSelectedItem();
-
-                String crType =
-                        (String) crTypeCombo.getSelectedItem();
-
-                String amtText =
-                        amtField.getText().trim();
-
-                if (date.isEmpty()
-                        || desc.isEmpty()
-                        || drAcc.isEmpty()
-                        || crAcc.isEmpty()
-                        || amtText.isEmpty()) {
-
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "Please fill out all fields.",
-                            "Validation Error",
-                            JOptionPane.WARNING_MESSAGE
-                    );
+                if (date.isEmpty() || desc.isEmpty() || drAcc.isEmpty() || crAcc.isEmpty() || amtText.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Please fill out all fields.", "Validation Error", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
-
                 if (drAcc.equalsIgnoreCase(crAcc)) {
-
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "Debit and Credit accounts must be different.",
-                            "Validation Error",
-                            JOptionPane.WARNING_MESSAGE
-                    );
+                    JOptionPane.showMessageDialog(this, "Debit and Credit accounts must be different.", "Validation Error", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
 
-                double amount =
-                        Double.parseDouble(amtText);
-
-                if (amount <= 0
-                        || Double.isInfinite(amount)
-                        || Double.isNaN(amount)) {
-
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "Amount must be greater than zero.",
-                            "Validation Error",
-                            JOptionPane.WARNING_MESSAGE
-                    );
+                double amount = Double.parseDouble(amtText);
+                if (amount <= 0 || Double.isInfinite(amount) || Double.isNaN(amount)) {
+                    JOptionPane.showMessageDialog(this, "Amount must be greater than zero.", "Validation Error", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
 
-                List<EntryLine> updatedLines =
-                        new ArrayList<>();
-
-                updatedLines.add(
-                        new EntryLine(
-                                drAcc, drType, amount, 0.0
-                        )
-                );
-
-                updatedLines.add(
-                        new EntryLine(
-                                crAcc, crType, 0.0, amount
-                        )
-                );
+                List<EntryLine> updatedLines = new ArrayList<>();
+                updatedLines.add(new EntryLine(drAcc, drType, amount, 0.0));
+                updatedLines.add(new EntryLine(crAcc, crType, 0.0, amount));
 
                 if (editingRecord[0] != null) {
-
-                    JournalRecord record =
-                            editingRecord[0];
-
+                    JournalRecord record = editingRecord[0];
                     record.date = date;
                     record.description = desc;
                     record.lines = updatedLines;
-
                     saveChangesFromColumnar();
-
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "Adjusting Entry ID "
-                                    + record.id
-                                    + " has been updated successfully!"
-                    );
-
+                    JOptionPane.showMessageDialog(this, "Entry ID " + record.id + " updated successfully!");
                     editingRecord[0] = null;
-                    addBtn.setText("ADD TRANSACTION");
-
+                    addBtn.setText("Add transaction");
                     entryTypeCombo.setEnabled(true);
-                    entryTypeCombo.setSelectedIndex(0);
-
                 } else {
-
-                    boolean isAdjusting =
-                            "Adjusting Entry".equals(
-                                    entryTypeCombo.getSelectedItem()
-                            );
-
-                    JournalRecord record =
-                            new JournalRecord(
-                                    counter++,
-                                    date,
-                                    desc,
-                                    updatedLines,
-                                    false,
-                                    "",
-                                    isAdjusting
-                            );
-
+                    boolean isAdjusting = "Adjusting Entry".equals(entryTypeCombo.getSelectedItem());
+                    JournalRecord record = new JournalRecord(counter++, date, desc, updatedLines, false, "", isAdjusting);
                     allEntries.add(record);
-
                     saveChangesFromColumnar();
-
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "Transaction Confirmed!"
-                    );
+                    JOptionPane.showMessageDialog(this, "Transaction Confirmed!");
                 }
 
                 refreshTable();
-
-                descArea.setText("");
-                amtField.setText("");
-                drAccountField.setText("");
-                crAccountField.setText("");
-
-                dateField.setText(
-                        new SimpleDateFormat("dd-MM-yyyy")
-                                .format(new Date())
-                );
+                clearBtn.doClick();
 
             } catch (NumberFormatException ex) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Please enter a valid numeric amount.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this, "Please enter a valid numeric amount.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
-        // LOAD SELECTED ADJUSTMENT FOR EDITING
         editBtn.addActionListener(e -> {
-
             int selectedRow = table.getSelectedRow();
-
             if (selectedRow == -1) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Please select an entry to edit.",
-                        "No Selection",
-                        JOptionPane.WARNING_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this, "Please select an entry to edit.", "No Selection", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-
-            int modelRow =
-                    table.convertRowIndexToModel(selectedRow);
-
-            int selectedId =
-                    (int) tableModel.getValueAt(modelRow, 0);
-
-            JournalRecord record =
-                    findRecordById(selectedId);
-
-            if (record == null) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Journal entry not found.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
-
-            if (!record.isAdjusting) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Only Adjusting Entries can be edited here.",
-                        "Regular Entry",
-                        JOptionPane.WARNING_MESSAGE
-                );
-                return;
-            }
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+            int selectedId = (int) tableModel.getValueAt(modelRow, 0);
+            JournalRecord record = findRecordById(selectedId);
+            if (record == null) return;
 
             if (record.isVoided) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "A voided entry cannot be edited.",
-                        "Voided Entry",
-                        JOptionPane.WARNING_MESSAGE
-                );
-                return;
-            }
-
-            if (record.lines == null
-                    || record.lines.size() < 2) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "This entry does not contain enough account lines to edit.",
-                        "Invalid Entry",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this, "A voided entry cannot be edited.", "Voided Entry", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
             EntryLine debitLine = null;
             EntryLine creditLine = null;
-
             for (EntryLine line : record.lines) {
-
-                if (line.debit > 0) {
-                    debitLine = line;
-                }
-
-                if (line.credit > 0) {
-                    creditLine = line;
-                }
+                if (line.debit > 0) debitLine = line;
+                if (line.credit > 0) creditLine = line;
             }
-
-            if (debitLine == null || creditLine == null) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Could not identify the debit and credit lines.",
-                        "Invalid Entry",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
+            if (debitLine == null || creditLine == null) return;
 
             editingRecord[0] = record;
-
-            dateField.setText(record.date);
+            datePicker.setDate(record.date);
             descArea.setText(record.description);
-
-            drAccountField.setText(debitLine.account);
-            crAccountField.setText(creditLine.account);
-
+            drAccountCombo.setSelectedItem(debitLine.account);
+            crAccountCombo.setSelectedItem(creditLine.account);
             drTypeCombo.setSelectedItem(debitLine.type);
             crTypeCombo.setSelectedItem(creditLine.type);
-
-            amtField.setText(
-                    String.valueOf(debitLine.debit)
-            );
-
-            entryTypeCombo.setSelectedItem(
-                    "Adjusting Entry"
-            );
-
-            entryTypeCombo.setEnabled(false);
-
-            addBtn.setText("SAVE CHANGES");
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Edit the selected Adjusting Entry, then click SAVE CHANGES."
-            );
+            amtField.setText(String.valueOf(debitLine.debit));
+            entryTypeCombo.setSelectedItem(record.isAdjusting ? "Adjusting Entry" : "Regular Entry");
+            addBtn.setText("Save changes");
         });
 
-        // VOID SELECTED ENTRY
         voidBtn.addActionListener(e -> {
-
             int selectedRow = table.getSelectedRow();
-
             if (selectedRow == -1) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Please select a journal entry to void.",
-                        "No Selection",
-                        JOptionPane.WARNING_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this, "Please select a journal entry to void.", "No Selection", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-
-            int modelRow =
-                    table.convertRowIndexToModel(selectedRow);
-
-            int selectedId =
-                    (int) tableModel.getValueAt(modelRow, 0);
-
-            JournalRecord selectedRecord =
-                    findRecordById(selectedId);
-
-            if (selectedRecord == null) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Journal entry not found.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
+            int modelRow = table.convertRowIndexToModel(selectedRow);
+            int selectedId = (int) tableModel.getValueAt(modelRow, 0);
+            JournalRecord selectedRecord = findRecordById(selectedId);
+            if (selectedRecord == null) return;
 
             if (selectedRecord.isVoided) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "This transaction has already been voided.",
-                        "Already Voided",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
+                JOptionPane.showMessageDialog(this, "This transaction has already been voided.", "Already Voided", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
-            int confirm = JOptionPane.showConfirmDialog(
-                    this,
-                    "Are you sure you want to void Journal Entry ID "
-                            + selectedRecord.id + "?",
-                    "Confirm Void Transaction",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE
-            );
-
-            if (confirm != JOptionPane.YES_OPTION) {
-                return;
+            String reason = JOptionPane.showInputDialog(this, "Reason for voiding ID " + selectedRecord.id + ":");
+            if (reason != null && !reason.trim().isEmpty()) {
+                selectedRecord.isVoided = true;
+                selectedRecord.voidReason = reason.trim();
+                saveChangesFromColumnar();
+                refreshTable();
+                JOptionPane.showMessageDialog(this, "Entry ID " + selectedRecord.id + " voided.");
             }
-
-            JTextArea reasonArea = new JTextArea(3, 25);
-            reasonArea.setLineWrap(true);
-            reasonArea.setWrapStyleWord(true);
-
-            int reasonResult = JOptionPane.showConfirmDialog(
-                    this,
-                    new JScrollPane(reasonArea),
-                    "Enter Reason for Voiding",
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.PLAIN_MESSAGE
-            );
-
-            if (reasonResult != JOptionPane.OK_OPTION) {
-                return;
-            }
-
-            String reason =
-                    reasonArea.getText().trim();
-
-            if (reason.isEmpty()) {
-
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Please provide a reason for voiding this transaction.",
-                        "Reason Required",
-                        JOptionPane.WARNING_MESSAGE
-                );
-                return;
-            }
-
-            selectedRecord.isVoided = true;
-            selectedRecord.voidReason = reason;
-
-            if (editingRecord[0] == selectedRecord) {
-
-                editingRecord[0] = null;
-                addBtn.setText("ADD TRANSACTION");
-                entryTypeCombo.setEnabled(true);
-            }
-
-            saveChangesFromColumnar();
-            refreshTable();
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Journal Entry ID "
-                            + selectedRecord.id
-                            + " has been successfully voided."
-            );
         });
+
+        return card;
     }
 
-    // NAVIGATION BUTTON STYLE
-    private void styleNavigationButton(JButton button) {
-
-        button.setBackground(WARM_BEIGE);
-        button.setForeground(TEXT_DARK);
-        button.setFont(
-                new Font("SansSerif", Font.BOLD, 12)
-        );
-        button.setFocusPainted(false);
+    private JPanel createFieldGroup(String labelStr, Component comp) {
+        JPanel panel = new JPanel(new BorderLayout(0, 5));
+        panel.setBackground(CARD_BG);
+        JLabel label = new JLabel(labelStr);
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        label.setForeground(TEXT_DARK);
+        panel.add(label, BorderLayout.NORTH);
+        panel.add(comp, BorderLayout.CENTER);
+        return panel;
     }
 
-    // PRIMARY BUTTON STYLE
-    private void stylePrimaryButton(JButton button) {
-
-        button.setBackground(DEEP_MOCHA);
-        button.setForeground(Color.WHITE);
-        button.setFont(
-                new Font("SansSerif", Font.BOLD, 11)
-        );
-        button.setFocusPainted(false);
+    private JTextField createStyledTextField(String text) {
+        JTextField field = new JTextField(text);
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1),
+                new EmptyBorder(8, 12, 8, 12)));
+        return field;
     }
 
-    // SWITCH VIEW IN SAME WINDOW
+    private void styleComboBox(JComboBox<?> combo) {
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        combo.setBackground(Color.WHITE);
+        combo.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
+    }
+
+    private JButton createStyledButton(String text, boolean dark) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        if (dark) {
+            btn.setBackground(BUTTON_BLACK);
+            btn.setForeground(Color.WHITE);
+            btn.setBorder(new EmptyBorder(12, 22, 12, 22));
+        } else {
+            btn.setBackground(Color.WHITE);
+            btn.setForeground(TEXT_DARK);
+            btn.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(BORDER_COLOR, 1),
+                    new EmptyBorder(12, 22, 12, 22)));
+        }
+        return btn;
+    }
+
+    private JPanel createTableCard() {
+        JPanel card = new RoundedPanel(16, CARD_BG, BORDER_COLOR);
+        card.setLayout(new BorderLayout());
+        card.setBorder(new EmptyBorder(20, 25, 20, 25));
+
+        String[] cols = {"ID", "Date", "Description", "Category", "Account", "Type", "Debit", "Credit", "Status"};
+        tableModel = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        table = new JTable(tableModel);
+        table.setRowHeight(42);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        table.setShowGrid(true);
+        table.setGridColor(new Color(230, 230, 230));
+        table.setIntercellSpacing(new Dimension(1, 1));
+
+        JTableHeader header = table.getTableHeader();
+        header.setBackground(Color.WHITE);
+        header.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        header.setForeground(TEXT_MUTED);
+        header.setPreferredSize(new Dimension(0, 36));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
+
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, s, f, r, c);
+                lbl.setOpaque(true);
+                lbl.setBackground(s ? t.getSelectionBackground() : Color.WHITE);
+                lbl.setForeground(TEXT_DARK);
+                lbl.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 1, new Color(230, 230, 230)),
+                        new EmptyBorder(8, 12, 8, 12)
+                ));
+                return lbl;
+            }
+        });
+
+        // Status column badge renderer matching reference Image #9
+        table.getColumnModel().getColumn(8).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
+                JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 8));
+                p.setBackground(s ? t.getSelectionBackground() : Color.WHITE);
+                p.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)));
+                JLabel lbl = new JLabel(v != null ? v.toString() : "") {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(Color.BLACK);
+                        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 16, 16));
+                        g2.dispose();
+                        super.paintComponent(g);
+                    }
+                };
+                lbl.setForeground(Color.WHITE);
+                lbl.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                lbl.setBorder(new EmptyBorder(3, 12, 3, 12));
+                p.add(lbl);
+                return p;
+            }
+        });
+
+        populateExistingTableRows();
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(null);
+        scrollPane.getViewport().setBackground(Color.WHITE);
+        scrollPane.setPreferredSize(new Dimension(0, 300));
+
+        JPanel tableWrapper = new RoundedPanel(12, Color.WHITE, BORDER_COLOR);
+        tableWrapper.setLayout(new BorderLayout());
+        tableWrapper.setBorder(new EmptyBorder(2, 2, 2, 2));
+        tableWrapper.add(scrollPane, BorderLayout.CENTER);
+
+        card.add(tableWrapper, BorderLayout.CENTER);
+
+        return card;
+    }
+
+    public JournalRecord findRecordById(int id) {
+        for (JournalRecord record : allEntries) {
+            if (record.id == id) return record;
+        }
+        return null;
+    }
+
+    public String getCurrentJournalFile() {
+        return currentJournalFile;
+    }
+
+    public void refreshTable() {
+        tableModel.setRowCount(0);
+        populateExistingTableRows();
+    }
+
+    private void populateExistingTableRows() {
+        for (JournalRecord record : allEntries) {
+            String status = record.isVoided ? "VOIDED" : "ACTIVE";
+            String entryCategory = record.isAdjusting ? "Adjusting Entry" : "Regular Entry";
+
+            for (EntryLine line : record.lines) {
+                tableModel.addRow(new Object[]{
+                        record.id,
+                        record.date,
+                        record.description,
+                        entryCategory,
+                        line.account,
+                        line.type,
+                        String.format("%.2f", line.debit),
+                        String.format("%.2f", line.credit),
+                        status
+                });
+            }
+        }
+    }
+
+    public void loadJournalsFromFile() {
+        File file = new File(currentJournalFile);
+        if (!file.exists()) {
+            file = new File("../" + currentJournalFile);
+        }
+        if (!file.exists()) return;
+
+        currentJournalFile = file.getPath();
+        allEntries.clear();
+
+        try (Scanner scanner = new Scanner(file)) {
+            int maxId = 0;
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine().trim();
+                if (line.isEmpty()) continue;
+
+                String[] parts = line.split("\\|", -1);
+                if (parts.length >= 4) {
+                    int id = Integer.parseInt(parts[0]);
+                    maxId = Math.max(maxId, id);
+                    String date = parts[1];
+                    String desc = parts[2];
+
+                    List<EntryLine> lines = new ArrayList<>();
+                    String[] lineItems = parts[3].split(";");
+                    for (String item : lineItems) {
+                        String[] fields = item.split(",", -1);
+                        if (fields.length >= 4) {
+                            lines.add(new EntryLine(
+                                    fields[0], fields[1],
+                                    Double.parseDouble(fields[2]),
+                                    Double.parseDouble(fields[3])
+                            ));
+                        }
+                    }
+
+                    boolean isVoided = parts.length >= 5 && Boolean.parseBoolean(parts[4]);
+                    String voidReason = parts.length >= 6 ? parts[5] : "";
+                    boolean isAdjusting = parts.length >= 7 && Boolean.parseBoolean(parts[6]);
+
+                    allEntries.add(new JournalRecord(id, date, desc, lines, isVoided, voidReason, isAdjusting));
+                }
+            }
+            counter = maxId + 1;
+        } catch (Exception e) {
+            System.out.println("Error loading file: " + e.getMessage());
+        }
+    }
+
+    public void saveChangesFromColumnar() {
+        saveJournalsToFile();
+    }
+
+    private void saveJournalsToFile() {
+        try (FileWriter writer = new FileWriter(currentJournalFile, false)) {
+            for (JournalRecord rec : allEntries) {
+                StringBuilder sb = new StringBuilder();
+                sb.append(rec.id).append("|")
+                        .append(rec.date).append("|")
+                        .append(rec.description).append("|");
+
+                for (int i = 0; i < rec.lines.size(); i++) {
+                    EntryLine line = rec.lines.get(i);
+                    sb.append(line.account).append(",")
+                            .append(line.type).append(",")
+                            .append(line.debit).append(",")
+                            .append(line.credit);
+                    if (i < rec.lines.size() - 1) sb.append(";");
+                }
+
+                sb.append("|").append(rec.isVoided)
+                        .append("|").append(rec.voidReason == null ? "" : rec.voidReason)
+                        .append("|").append(rec.isAdjusting);
+
+                writer.write(sb.toString() + "\n");
+            }
+        } catch (IOException e) {
+            System.out.println("Error saving file: " + e.getMessage());
+        }
+    }
+
     public void switchView(JPanel panel) {
         Window window = SwingUtilities.getWindowAncestor(this);
         if (window instanceof JFrame) {
@@ -869,247 +735,34 @@ public class journal extends JPanel {
             frame.getContentPane().add(panel);
             frame.revalidate();
             frame.repaint();
-        } else {
-            openWindow(panel);
         }
     }
 
-    // OPEN MODULE WINDOW
-    private void openWindow(JPanel panel) {
+    public static class RoundedPanel extends JPanel {
+        private int radius;
+        private Color bgColor;
+        private Color borderColor;
 
-        Window window =
-                SwingUtilities.getWindowAncestor(this);
-
-        if (window != null) {
-            window.dispose();
+        public RoundedPanel(int radius, Color bgColor, Color borderColor) {
+            super();
+            this.radius = radius;
+            this.bgColor = bgColor;
+            this.borderColor = borderColor;
+            setOpaque(false);
         }
 
-        JFrame frame =
-                new JFrame("Accounting System Workspace");
-
-        frame.setDefaultCloseOperation(
-                JFrame.DISPOSE_ON_CLOSE
-        );
-
-        frame.setSize(1100, 700);
-        frame.setLocationRelativeTo(null);
-        frame.add(panel);
-        frame.setVisible(true);
-    }
-
-    // FIND JOURNAL RECORD
-    public JournalRecord findRecordById(int id) {
-
-        for (JournalRecord record : allEntries) {
-
-            if (record.id == id) {
-                return record;
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(getBackground() != null && !getBackground().equals(bgColor) ? getBackground() : bgColor);
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+            if (borderColor != null) {
+                g2.setColor(borderColor);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
             }
-        }
-
-        return null;
-    }
-
-    public String getCurrentJournalFile() {
-        return currentJournalFile;
-    }
-
-    // REFRESH TABLE
-    public void refreshTable() {
-
-        tableModel.setRowCount(0);
-        populateExistingTableRows();
-    }
-
-    // POPULATE JOURNAL TABLE
-    private void populateExistingTableRows() {
-
-        for (JournalRecord record : allEntries) {
-
-            String status =
-                    record.isVoided ? "VOIDED" : "ACTIVE";
-
-            String entryCategory =
-                    record.isAdjusting
-                            ? "Adjusting Entry"
-                            : "Regular Entry";
-
-            for (EntryLine line : record.lines) {
-
-                tableModel.addRow(new Object[]{
-
-                        record.id,
-                        record.date,
-                        record.description,
-                        entryCategory,
-                        line.account,
-                        line.type,
-                        line.debit,
-                        line.credit,
-                        status
-                });
-            }
-        }
-    }
-
-    // LOAD JOURNALS FROM FILE
-    public void loadJournalsFromFile() {
-
-        File file = new File(currentJournalFile);
-
-        if (!file.exists()) {
-            file = new File("../" + currentJournalFile);
-        }
-
-        if (!file.exists()) {
-            return;
-        }
-
-        currentJournalFile = file.getPath();
-
-        allEntries.clear();
-
-        try (Scanner scanner = new Scanner(file)) {
-
-            int maxId = 0;
-
-            while (scanner.hasNextLine()) {
-
-                String line = scanner.nextLine().trim();
-
-                if (line.isEmpty()) {
-                    continue;
-                }
-
-                String[] parts =
-                        line.split("\\|", -1);
-
-                if (parts.length >= 4) {
-
-                    int id = Integer.parseInt(parts[0]);
-                    maxId = Math.max(maxId, id);
-
-                    String date = parts[1];
-                    String desc = parts[2];
-
-                    List<EntryLine> lines =
-                            new ArrayList<>();
-
-                    String[] lineItems =
-                            parts[3].split(";");
-
-                    for (String item : lineItems) {
-
-                        String[] fields =
-                                item.split(",", -1);
-
-                        if (fields.length >= 4) {
-
-                            lines.add(
-                                    new EntryLine(
-                                            fields[0],
-                                            fields[1],
-                                            Double.parseDouble(fields[2]),
-                                            Double.parseDouble(fields[3])
-                                    )
-                            );
-                        }
-                    }
-
-                    boolean isVoided =
-                            parts.length >= 5
-                                    && Boolean.parseBoolean(parts[4]);
-
-                    String voidReason =
-                            parts.length >= 6
-                                    ? parts[5] : "";
-
-                    // OLD RECORDS DEFAULT TO REGULAR ENTRY
-                    boolean isAdjusting =
-                            parts.length >= 7
-                                    && Boolean.parseBoolean(parts[6]);
-
-                    allEntries.add(
-                            new JournalRecord(
-                                    id,
-                                    date,
-                                    desc,
-                                    lines,
-                                    isVoided,
-                                    voidReason,
-                                    isAdjusting
-                            )
-                    );
-                }
-            }
-
-            counter = maxId + 1;
-
-        } catch (Exception e) {
-
-            System.out.println(
-                    "Error loading file: " + e.getMessage()
-            );
-        }
-    }
-
-    // PUBLIC SAVE METHOD FOR COLUMNAR SHEET
-    public void saveChangesFromColumnar() {
-        saveJournalsToFile();
-    }
-
-    // SAVE JOURNALS TO FILE
-    private void saveJournalsToFile() {
-
-        try (FileWriter writer =
-                     new FileWriter(currentJournalFile, false)) {
-
-            for (JournalRecord rec : allEntries) {
-
-                StringBuilder sb = new StringBuilder();
-
-                sb.append(rec.id).append("|")
-                        .append(rec.date).append("|")
-                        .append(rec.description).append("|");
-
-                for (int i = 0; i < rec.lines.size(); i++) {
-
-                    EntryLine line = rec.lines.get(i);
-
-                    sb.append(line.account).append(",")
-                            .append(line.type).append(",")
-                            .append(line.debit).append(",")
-                            .append(line.credit);
-
-                    if (i < rec.lines.size() - 1) {
-                        sb.append(";");
-                    }
-                }
-
-                sb.append("|")
-                        .append(rec.isVoided)
-                        .append("|")
-                        .append(rec.voidReason == null
-                                ? "" : rec.voidReason)
-                        .append("|")
-                        .append(rec.isAdjusting);
-
-                writer.write(sb.toString() + "\n");
-            }
-
-        } catch (IOException e) {
-
-            System.out.println(
-                    "Error saving file: " + e.getMessage()
-            );
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Unable to save journal file: "
-                            + e.getMessage(),
-                    "Save Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            g2.dispose();
         }
     }
 }

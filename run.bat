@@ -1,3 +1,3 @@
 @echo off
 rem Starts DAPAS. Run build.bat first.
-java -cp "bin;lib\*" Main
+java --enable-native-access=ALL-UNNAMED -cp "bin;lib\*" Main

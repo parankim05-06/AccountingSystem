@@ -1,7 +1,9 @@
 package auth;
 
+import ui.Theme;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,13 +16,6 @@ public class SignUpFrame extends JFrame {
     private JTextField userField;
     private JPasswordField passField;
 
-    private final Color BG_COLOR = new Color(248, 246, 242);
-    private final Color CARD_COLOR = new Color(255, 255, 255);
-    private final Color PRIMARY_COLOR = new Color(92, 64, 51);
-    private final Color TEXT_COLOR = new Color(60, 50, 45);
-    private final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 22);
-    private final Font LABEL_FONT = new Font("SansSerif", Font.PLAIN, 13);
-
     public SignUpFrame(Map<String, User> userDatabase, String fileName) {
         this.userDatabase = userDatabase;
         this.FILE_NAME = fileName;
@@ -31,31 +26,28 @@ public class SignUpFrame extends JFrame {
         setLocationRelativeTo(null);
 
         JPanel mainPanel = new JPanel(new GridBagLayout());
-        mainPanel.setBackground(BG_COLOR);
+        mainPanel.setBackground(Theme.BG_DARK);
         mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
         JPanel cardPanel = new JPanel(new GridBagLayout());
-        cardPanel.setBackground(CARD_COLOR);
-        cardPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(220, 215, 210), 1),
-            new EmptyBorder(25, 25, 25, 25)
-        ));
+        cardPanel.setBackground(Theme.CARD_BG);
+        cardPanel.setBorder(new MatteBorder(1, 1, 1, 1, Theme.BORDER_DARK));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         JLabel titleLabel = new JLabel("Create Account", JLabel.CENTER);
-        titleLabel.setFont(TITLE_FONT);
-        titleLabel.setForeground(PRIMARY_COLOR);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setForeground(Theme.ACCENT_GOLD);
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
         cardPanel.add(titleLabel, gbc);
 
         // Username
         gbc.gridwidth = 1; gbc.gridy = 1; gbc.gridx = 0;
         JLabel userLabel = new JLabel("New Username");
-        userLabel.setFont(LABEL_FONT);
-        userLabel.setForeground(TEXT_COLOR);
+        userLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        userLabel.setBackground(Theme.TEXT_WHITE);
         cardPanel.add(userLabel, gbc);
 
         gbc.gridx = 1;
@@ -65,8 +57,8 @@ public class SignUpFrame extends JFrame {
         // Password
         gbc.gridy = 2; gbc.gridx = 0;
         JLabel passLabel = new JLabel("New Password");
-        passLabel.setFont(LABEL_FONT);
-        passLabel.setForeground(TEXT_COLOR);
+        passLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        passLabel.setBackground(Theme.TEXT_WHITE);
         cardPanel.add(passLabel, gbc);
 
         gbc.gridx = 1;
@@ -75,17 +67,10 @@ public class SignUpFrame extends JFrame {
 
         // Buttons
         JPanel btnPanel = new JPanel(new GridLayout(1, 2, 10, 0));
-        btnPanel.setBackground(CARD_COLOR);
+        btnPanel.setBackground(Theme.CARD_BG);
 
-        JButton registerBtn = new JButton("Register");
-        registerBtn.setBackground(PRIMARY_COLOR);
-        registerBtn.setForeground(Color.WHITE);
-        registerBtn.setFocusPainted(false);
-
-        JButton backBtn = new JButton("Back to Login");
-        backBtn.setBackground(new Color(230, 225, 218));
-        backBtn.setForeground(TEXT_COLOR);
-        backBtn.setFocusPainted(false);
+        JButton registerBtn = Theme.primaryButton("Register");
+        JButton backBtn = Theme.secondaryButton("Back to Login");
 
         btnPanel.add(registerBtn);
         btnPanel.add(backBtn);

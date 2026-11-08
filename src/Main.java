@@ -5,9 +5,7 @@ import ui.WelcomeFrame;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-/**
- * Entry point for the Accounting System application.
- */
+
 public class Main {
 
     public static void main(String[] args) {

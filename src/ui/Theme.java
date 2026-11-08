@@ -1,55 +1,98 @@
 package ui;
 
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JLabel;
+import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.border.MatteBorder;
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.Insets;
 import java.io.File;
 
 /**
- * The colors (and two button styles) of the ORIGINAL app, kept in one place so
- * every screen looks the same. Change a color here and the whole app changes.
+ * The colors and styles of the app, kept in one place so every screen looks the same.
+ * Dominant lighter aesthetic with warm chocolate card contrast.
  */
 public class Theme {
-    public static final Color WARM_CREAM = new Color(248, 246, 242);   // window background
-    public static final Color SOFT_CARD = new Color(252, 250, 248);    // cards in the workspace
-    public static final Color WARM_BEIGE = new Color(230, 225, 218);   // secondary buttons, borders
-    public static final Color DEEP_MOCHA = new Color(92, 64, 51);      // main brown (titles, main buttons)
-    public static final Color TEXT_DARK = new Color(60, 50, 45);
-    public static final Color CARD_BORDER = new Color(220, 215, 210);
-    public static final Color SUBTLE_TEXT = new Color(120, 110, 105);
-    public static final Color LOGOUT_BUTTON = new Color(210, 180, 170);
-    public static final Color NEW_JOURNAL_BUTTON = new Color(248, 240, 227);
 
-    /**
-     * The original dashboard used the font name "TimesNewRoman". That is not a real
-     * font name (the real one is "Times New Roman"), so Java quietly used its default
-     * font instead. I kept the exact same text so the dashboard looks exactly as before.
-     */
-    public static final String DASHBOARD_FONT = "TimesNewRoman";
+    // --- Dominant Lighter Palette with Warm Chocolate Accents ---
+    public static final Color BG_DARK = new Color(245, 241, 235);         // dominant light background (warm cream)
+    public static final Color CARD_BG = new Color(255, 253, 250);         // card background (pure warm white)
+    public static final Color CARD_LIGHT = new Color(238, 232, 224);      // hover / table header
+    public static final Color ACCENT_GOLD = new Color(110, 65, 45);       // deep rich brown for primary actions
+    public static final Color TEXT_WHITE = new Color(50, 35, 30);         // dark text for readability on light BG
+    public static final Color TEXT_MUTED = new Color(110, 95, 85);        // secondary text
+    public static final Color BORDER_DARK = new Color(210, 195, 180);     // soft borders
 
-    /** Brown button with white text (the main action on a screen). */
+    // Backward compatibility mappings
+    public static final Color WARM_CREAM = BG_DARK;
+    public static final Color SOFT_CARD = CARD_BG;
+    public static final Color WARM_BEIGE = ACCENT_GOLD;
+    public static final Color DEEP_MOCHA = ACCENT_GOLD;
+    public static final Color TEXT_DARK = TEXT_WHITE;
+    public static final Color CARD_BORDER = BORDER_DARK;
+    public static final Color SUBTLE_TEXT = TEXT_MUTED;
+    public static final Color LOGOUT_BUTTON = new Color(175, 105, 95);
+    public static final Color NEW_JOURNAL_BUTTON = new Color(238, 232, 224);
+
+    public static final String DASHBOARD_FONT = "Segoe UI";
+
+    /** A rounded border for cards. */
+    public static javax.swing.border.Border roundedBorder(int thickness) {
+        return BorderFactory.createCompoundBorder(
+                new LineBorder(BORDER_DARK, thickness, true),
+                new EmptyBorder(14, 16, 14, 16));
+    }
+
+    /** A card panel with light background and rounded border. */
+    public static JPanel cardPanel() {
+        JPanel p = new JPanel();
+        p.setBackground(CARD_BG);
+        p.setBorder(roundedBorder(1));
+        return p;
+    }
+
+    /** Rich brown button with white text (the main action on a screen). */
     public static JButton primaryButton(String text) {
         JButton button = new JButton(text);
-        button.setBackground(DEEP_MOCHA);
+        button.setBackground(new Color(92, 54, 41));
         button.setForeground(Color.WHITE);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
         button.setFocusPainted(false);
+        button.setBorder(new MatteBorder(1, 1, 1, 1, new Color(70, 40, 30)));
         return button;
     }
 
-    /** Beige button with dark text (secondary actions). */
+    /** Lighter button for secondary actions. */
     public static JButton secondaryButton(String text) {
         JButton button = new JButton(text);
-        button.setBackground(WARM_BEIGE);
-        button.setForeground(TEXT_DARK);
+        button.setBackground(new Color(230, 220, 210));
+        button.setForeground(new Color(60, 40, 35));
+        button.setFont(new Font("Segoe UI", Font.BOLD, 13));
         button.setFocusPainted(false);
+        button.setBorder(new MatteBorder(1, 1, 1, 1, new Color(190, 175, 160)));
         return button;
+    }
+
+    /** A styled label for section headings. */
+    public static JLabel headingLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        label.setForeground(new Color(92, 54, 41));
+        return label;
+    }
+
+    /** A styled label for body text. */
+    public static JLabel bodyLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        label.setForeground(TEXT_WHITE);
+        return label;
     }
 
     /**
      * Shows your logo if the file resources/logo.png exists, otherwise returns null.
-     * To use your logo: copy it to the DAPAS folder as resources\logo.png.
      */
     public static JLabel logoLabel() {
         File logoFile = new File("resources", "logo.png");
@@ -61,7 +104,6 @@ public class Theme {
 
     /**
      * A table model whose cells cannot be edited by double-clicking them.
-     * (A plain DefaultTableModel lets the user type over the numbers.)
      */
     public static DefaultTableModel readOnlyTableModel(String[] columnNames) {
         return new DefaultTableModel(columnNames, 0) {

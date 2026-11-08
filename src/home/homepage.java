@@ -3,8 +3,6 @@ package home;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -12,23 +10,37 @@ import java.util.Comparator;
 public class homepage extends JFrame {
     private String username;
     private DefaultListModel<String> recentListModel;
-    private JList<String> recentList;
     private DefaultListModel<String> savedListModel;
-    private JList<String> savedList;
+    private JPanel recentListPanel;
+    private JPanel savedListPanel;
 
-    private final Color WARM_CREAM = new Color(248, 246, 242);
-    private final Color SOFT_CARD = new Color(252, 250, 248);
-    private final Color WARM_BEIGE = new Color(230, 225, 218);
-    private final Color DEEP_MOCHA = new Color(92, 64, 51);
-    private final Color TEXT_DARK = new Color(60, 50, 45);
+    // UI Colors matching the reference image
+    private final Color SIDEBAR_BG = new Color(20, 20, 20);
+    private final Color MAIN_BG = new Color(245, 245, 245);
+    private final Color CARD_BG = Color.WHITE;
+    private final Color BORDER_COLOR = new Color(220, 220, 220);
+    private final Color TEXT_DARK = new Color(40, 40, 40);
 
     public homepage(String username) {
         this.username = username;
-        setTitle("Accounting System - Dashboard (" + username + ")");
-        setSize(850, 620);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setTitle("Accounting System - Dashboard");
+        setSize(1100, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        setResizable(true);
+
+        recentListModel = new DefaultListModel<>();
+        savedListModel = new DefaultListModel<>();
+
         initUI();
+        loadFiles();
+        // Wait briefly for UI components to be created
+        // then reload files to populate the panels
+        SwingUtilities.invokeLater(this::reloadFiles);
+    }
+
+    public void reloadFiles() {
+        loadFiles();
     }
 
     public void showDashboard() {
@@ -36,129 +48,208 @@ public class homepage extends JFrame {
     }
 
     private void initUI() {
-        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
-        mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        mainPanel.setBackground(WARM_CREAM);
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(MAIN_BG);
 
-        // Top Welcome Header
-        JLabel welcomeLbl = new JLabel("Welcome, " + username + "!");
-        welcomeLbl.setFont(new Font("TimesNewRoman", Font.BOLD, 20));
-        welcomeLbl.setForeground(DEEP_MOCHA);
+        // Sidebar
+        root.add(createSidebar(), BorderLayout.WEST);
 
-        JButton logoutBtn = new JButton("Log Out");
-        logoutBtn.setBackground(new Color(210, 180, 170));
-        logoutBtn.setForeground(TEXT_DARK);
-        logoutBtn.setFocusPainted(false);
-        logoutBtn.addActionListener(e -> {
-            dispose();
-            new HomeFrame().setVisible(true);
-        });
+        // Main Content Area
+        JPanel mainContent = new JPanel(new BorderLayout(20, 20));
+        mainContent.setBackground(MAIN_BG);
+        mainContent.setBorder(new EmptyBorder(40, 50, 40, 50));
 
-        JPanel topBar = new JPanel(new BorderLayout());
-        topBar.setBackground(WARM_CREAM);
-        topBar.add(welcomeLbl, BorderLayout.WEST);
-        topBar.add(logoutBtn, BorderLayout.EAST);
+        // Welcome Header
+        JLabel welcomeLabel = new JLabel("Welcome, " + username);
+        welcomeLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        welcomeLabel.setForeground(Color.BLACK);
+        mainContent.add(welcomeLabel, BorderLayout.NORTH);
 
-        // Center Layout Matching Sketch: Top-Left (Recent), Top-Right (New Journal), Bottom (Saved Files)
-        JPanel centerPanel = new JPanel(new GridBagLayout());
-        centerPanel.setBackground(WARM_CREAM);
+        // Center Container for Cards
+        JPanel centerContainer = new JPanel(new GridBagLayout());
+        centerContainer.setBackground(MAIN_BG);
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.insets = new Insets(0, 0, 25, 25);
         gbc.fill = GridBagConstraints.BOTH;
 
-        // 1. Recently Opened Files Box (Top-Left)
-        JPanel recentBox = new JPanel(new BorderLayout(8, 8));
-        recentBox.setBackground(SOFT_CARD);
-        recentBox.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(WARM_BEIGE, 1),
-            new EmptyBorder(10, 12, 10, 12)
-        ));
+        // Top Row: Recently Opened Files (Left)
+        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.weightx = 0.6; gbc.weighty = 0.4;
+        centerContainer.add(createRecentCard(), gbc);
 
-        JLabel recentHeader = new JLabel("Recently Opened Files");
-        recentHeader.setFont(new Font("TimesNewRoman", Font.BOLD, 13));
-        recentHeader.setForeground(DEEP_MOCHA);
+        // Top Row: New Journal (Right)
+        gbc.gridx = 1; gbc.gridy = 0;
+        gbc.weightx = 0.4; gbc.weighty = 0.4;
+        gbc.insets = new Insets(0, 0, 25, 0);
+        centerContainer.add(createNewJournalCard(), gbc);
 
-        recentListModel = new DefaultListModel<>();
-        recentList = new JList<>(recentListModel);
-        recentList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        recentList.setFont(new Font("TimesNewRoman", Font.PLAIN, 13));
-        
-        // Double-click to open file
-        recentList.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent evt) {
-                if (evt.getClickCount() == 2) {
-                    String selected = recentList.getSelectedValue();
-                    if (selected != null) openJournalFile(selected);
-                }
+        // Bottom Row: Saved Files (Full Width)
+        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.weighty = 0.6;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        centerContainer.add(createSavedCard(), gbc);
+
+        mainContent.add(centerContainer, BorderLayout.CENTER);
+        root.add(mainContent, BorderLayout.CENTER);
+
+        add(root);
+    }
+
+    private JPanel createSidebar() {
+        JPanel sidebar = new JPanel(new BorderLayout());
+        sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setPreferredSize(new Dimension(220, 0));
+        sidebar.setBorder(new EmptyBorder(30, 20, 30, 20));
+
+        // Logo
+        JLabel logo = new JLabel("📋 ENTRI");
+        logo.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        logo.setForeground(Color.WHITE);
+        logo.setBorder(new EmptyBorder(0, 0, 40, 0));
+
+        // Navigation Links
+        JPanel navLinks = new JPanel();
+        navLinks.setLayout(new BoxLayout(navLinks, BoxLayout.Y_AXIS));
+        navLinks.setBackground(SIDEBAR_BG);
+
+        navLinks.add(createNavLink("Dashboard", true));
+
+        JPanel topSection = new JPanel(new BorderLayout());
+        topSection.setBackground(SIDEBAR_BG);
+        topSection.add(logo, BorderLayout.NORTH);
+        topSection.add(navLinks, BorderLayout.CENTER);
+
+        // Bottom Section
+        JPanel bottomSection = new JPanel();
+        bottomSection.setLayout(new BoxLayout(bottomSection, BoxLayout.Y_AXIS));
+        bottomSection.setBackground(SIDEBAR_BG);
+
+        JLabel userLabel = new JLabel("Signed in as " + username);
+        userLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        userLabel.setForeground(new Color(180, 180, 180));
+        userLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton logoutBtn = new JButton("Log out");
+        logoutBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        logoutBtn.setBackground(Color.WHITE);
+        logoutBtn.setForeground(Color.BLACK);
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.setMaximumSize(new Dimension(180, 40));
+        logoutBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        logoutBtn.addActionListener(e -> {
+            new ui.LoginFrame().setVisible(true);
+            dispose();
+        });
+
+        bottomSection.add(userLabel);
+        bottomSection.add(Box.createVerticalStrut(10));
+        bottomSection.add(logoutBtn);
+
+        sidebar.add(topSection, BorderLayout.NORTH);
+        sidebar.add(bottomSection, BorderLayout.SOUTH);
+
+        return sidebar;
+    }
+
+    private JButton createNavLink(String text, boolean active) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setMaximumSize(new Dimension(200, 45));
+        btn.setFocusPainted(false);
+        btn.setBorder(new EmptyBorder(0, 15, 0, 15));
+
+        if (active) {
+            btn.setBackground(Color.WHITE);
+            btn.setForeground(Color.BLACK);
+        } else {
+            btn.setBackground(SIDEBAR_BG);
+            btn.setForeground(new Color(180, 180, 180));
+            btn.setBorder(null);
+        }
+
+        btn.addActionListener(e -> {
+            if (text.equals("Journal entry")) {
+                new ui.JournalFrame(new model.User(0, username, "", "")).setVisible(true);
+                dispose();
+            }
+            // Add other navigation as needed
+        });
+
+        return btn;
+    }
+
+    private JPanel createRecentCard() {
+        JPanel card = createBaseCard("Recently opened files");
+        recentListPanel = new JPanel();
+        recentListPanel.setLayout(new BoxLayout(recentListPanel, BoxLayout.Y_AXIS));
+        recentListPanel.setBackground(CARD_BG);
+
+        // We'll update this in loadFiles()
+        card.add(new JScrollPane(recentListPanel), BorderLayout.CENTER);
+        return card;
+    }
+
+    private JPanel createSavedCard() {
+        JPanel card = createBaseCard("Saved files");
+        savedListPanel = new JPanel();
+        savedListPanel.setLayout(new BoxLayout(savedListPanel, BoxLayout.Y_AXIS));
+        savedListPanel.setBackground(CARD_BG);
+
+        // We'll update this in loadFiles()
+        card.add(new JScrollPane(savedListPanel), BorderLayout.CENTER);
+        return card;
+    }
+
+    private JPanel createBaseCard(String title) {
+        JPanel card = new JPanel(new BorderLayout(10, 10));
+        card.setBackground(CARD_BG);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1),
+                new EmptyBorder(25, 25, 25, 25)));
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        titleLabel.setForeground(Color.BLACK);
+        card.add(titleLabel, BorderLayout.NORTH);
+
+        return card;
+    }
+
+    private JPanel createNewJournalCard() {
+        JPanel card = new JPanel(new GridBagLayout());
+        card.setBackground(new Color(15, 15, 15)); // Black card
+        card.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
+        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(new Color(15, 15, 15));
+
+        JLabel plusIcon = new JLabel("+");
+        plusIcon.setFont(new Font("Segoe UI", Font.BOLD, 48));
+        plusIcon.setForeground(Color.WHITE);
+        plusIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel label = new JLabel("New journal");
+        label.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        label.setForeground(Color.WHITE);
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        content.add(plusIcon);
+        content.add(Box.createVerticalStrut(10));
+        content.add(label);
+
+        card.add(content);
+
+        card.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                createNewJournal();
             }
         });
 
-        JScrollPane recentScroll = new JScrollPane(recentList);
-        recentBox.add(recentHeader, BorderLayout.NORTH);
-        recentBox.add(recentScroll, BorderLayout.CENTER);
-
-        // 2. New Journal Box / Button (Top-Right)
-        JPanel newJournalBox = new JPanel(new BorderLayout());
-        newJournalBox.setBackground(SOFT_CARD);
-        newJournalBox.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(WARM_BEIGE, 1),
-            new EmptyBorder(10, 12, 10, 12)
-        ));
-
-        JButton newJournalBtn = new JButton("<html><center><font size='+3'>+</font><br>New Journal</center></html>");
-        newJournalBtn.setBackground(new Color(248, 240, 227));
-        newJournalBtn.setForeground(Color.BLACK);
-        newJournalBtn.setFocusPainted(false);
-        newJournalBtn.setFont(new Font("TimesNewRoman", Font.BOLD, 14));
-        newJournalBtn.addActionListener(e -> createNewJournal());
-
-        newJournalBox.add(newJournalBtn, BorderLayout.CENTER);
-
-        // 3. Saved Files Box (Bottom - Full Width)
-        JPanel savedBox = new JPanel(new BorderLayout(8, 8));
-        savedBox.setBackground(SOFT_CARD);
-        savedBox.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(WARM_BEIGE, 1),
-            new EmptyBorder(10, 12, 10, 12)
-        ));
-
-        JLabel savedHeader = new JLabel("Saved Files");
-        savedHeader.setFont(new Font("TimesNewRoman", Font.BOLD, 13));
-        savedHeader.setForeground(DEEP_MOCHA);
-
-        savedListModel = new DefaultListModel<>();
-        savedList = new JList<>(savedListModel);
-        savedList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        savedList.setFont(new Font("TimesNewRoman", Font.PLAIN, 13));
-
-        // Double-click to open file
-        savedList.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent evt) {
-                if (evt.getClickCount() == 2) {
-                    String selected = savedList.getSelectedValue();
-                    if (selected != null) openJournalFile(selected);
-                }
-            }
-        });
-
-        JScrollPane savedScroll = new JScrollPane(savedList);
-        savedBox.add(savedHeader, BorderLayout.NORTH);
-        savedBox.add(savedScroll, BorderLayout.CENTER);
-
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.65; gbc.weighty = 0.5;
-        centerPanel.add(recentBox, gbc);
-
-        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 0.35; gbc.weighty = 0.5;
-        centerPanel.add(newJournalBox, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 0.5;
-        centerPanel.add(savedBox, gbc);
-
-        mainPanel.add(topBar, BorderLayout.NORTH);
-        mainPanel.add(centerPanel, BorderLayout.CENTER);
-
-        add(mainPanel);
-        loadFiles();
+        return card;
     }
 
     private void createNewJournal() {
@@ -168,10 +259,9 @@ public class homepage extends JFrame {
             String fileName = "journal_" + username + "_" + cleanName + ".txt";
             try {
                 File f = new File(fileName);
-                f.createNewFile();
-                f.setLastModified(System.currentTimeMillis());
-                
-                // Open newly created journal directly
+                if (f.createNewFile()) {
+                    f.setLastModified(System.currentTimeMillis());
+                }
                 openJournalFile(cleanName);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error creating file.");
@@ -184,57 +274,71 @@ public class homepage extends JFrame {
         savedListModel.clear();
 
         File folder = new File(".");
-        File[] userFiles = folder.listFiles((dir, name) -> 
-            name.startsWith("journal_" + username + "_") && name.endsWith(".txt")
+        File[] userFiles = folder.listFiles((dir, name) ->
+                name.startsWith("journal_" + username + "_") && name.endsWith(".txt")
         );
 
+        if (recentListPanel == null || savedListPanel == null) return;
+
+        recentListPanel.removeAll();
+        savedListPanel.removeAll();
+
         if (userFiles != null && userFiles.length > 0) {
+            // Recent files (sorted by date)
             File[] recentFiles = userFiles.clone();
             Arrays.sort(recentFiles, Comparator.comparingLong(File::lastModified).reversed());
+            for (int i = 0; i < Math.min(recentFiles.length, 3); i++) {
+                String name = recentFiles[i].getName().replace("journal_" + username + "_", "").replace(".txt", "");
+                recentListPanel.add(createFileRow(name));
+                recentListPanel.add(Box.createVerticalStrut(15));
+            }
 
+            // Saved files (alphabetical)
             File[] savedFiles = userFiles.clone();
             Arrays.sort(savedFiles, Comparator.comparing(File::getName));
-
-            int recentLimit = Math.min(recentFiles.length, 5);
-            for (int i = 0; i < recentLimit; i++) {
-                String displayName = recentFiles[i].getName()
-                    .replace("journal_" + username + "_", "")
-                    .replace(".txt", "");
-                recentListModel.addElement(displayName);
-            }
-
             for (File file : savedFiles) {
-                String displayName = file.getName()
-                    .replace("journal_" + username + "_", "")
-                    .replace(".txt", "");
-                savedListModel.addElement(displayName);
+                String name = file.getName().replace("journal_" + username + "_", "").replace(".txt", "");
+                savedListPanel.add(createFileRow(name));
+                savedListPanel.add(Box.createVerticalStrut(15));
             }
+        }
+
+        revalidate();
+        repaint();
     }
+
+    private JPanel createFileRow(String name) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setBackground(CARD_BG);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        JLabel nameLabel = new JLabel(name);
+        nameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        nameLabel.setForeground(TEXT_DARK);
+
+        JButton openBtn = new JButton("Open");
+        openBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        openBtn.setForeground(TEXT_DARK);
+        openBtn.setBackground(CARD_BG);
+        openBtn.setBorder(null);
+        openBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        openBtn.addActionListener(e -> openJournalFile(name));
+
+        row.add(nameLabel, BorderLayout.WEST);
+        row.add(openBtn, BorderLayout.EAST);
+        row.add(Box.createVerticalGlue(), BorderLayout.SOUTH);
+        row.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(240, 240, 240)));
+
+        return row;
     }
 
     private void openJournalFile(String fileNameOnly) {
         String clean = fileNameOnly.trim();
-        String fullFileName = clean;
-        if (!fullFileName.startsWith("journal_" + username + "_")) {
-            fullFileName = "journal_" + username + "_" + clean;
-        }
-        if (!fullFileName.endsWith(".txt")) {
-            fullFileName = fullFileName + ".txt";
-        }
-        File fileToTouch = new File(fullFileName);
-        try {
-            if (!fileToTouch.exists()) {
-                fileToTouch.createNewFile();
-            }
-        } catch (Exception ignored) {}
-        fileToTouch.setLastModified(System.currentTimeMillis());
+        String fullFileName = "journal_" + username + "_" + clean + ".txt";
+        File file = new File(fullFileName);
+        file.setLastModified(System.currentTimeMillis());
 
+        new ui.JournalFrame(new model.User(0, username, "", ""), clean).setVisible(true);
         dispose();
-        JFrame frame = new JFrame("Accounting System Workspace");
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setSize(1100, 700);
-        frame.setLocationRelativeTo(null);
-        frame.add(new journal(fileToTouch.getName(), username));
-        frame.setVisible(true);
     }
 }

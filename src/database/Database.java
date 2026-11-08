@@ -26,11 +26,15 @@ public class Database {
      * (Tests can choose another file with setDatabasePath.)
      */
     public static String getDatabasePath() {
-        if (databasePath == null) {
-            File folder = new File(System.getProperty("user.home"), "DAPAS");
-            databasePath = new File(folder, "dapas.db").getAbsolutePath();
-        }
+         if (databasePath == null) {
+        File folder = new File("data");
+        folder.mkdirs();
+
+        databasePath = new File(folder, "dapas.db").getAbsolutePath();
+    }
         return databasePath;
+
+
     }
 
     public static void setDatabasePath(String path) {
@@ -96,6 +100,25 @@ public class Database {
               + " FOREIGN KEY (account_id)       REFERENCES accounts(id))");
 
             addStarterAccountsIfEmpty(connection);
+            addDefaultAdminIfEmpty(connection);
+        }
+    }
+
+    private static void addDefaultAdminIfEmpty(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM users")) {
+            result.next();
+            if (result.getInt(1) > 0) {
+                return;
+            }
+        }
+        String sql = "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)";
+        try (PreparedStatement insert = connection.prepareStatement(sql)) {
+            insert.setString(1, "admin");
+            // Hash for "admin123" using service.AuthService.hashPassword
+            insert.setString(2, service.AuthService.hashPassword("admin123"));
+            insert.setString(3, java.time.LocalDateTime.now().withNano(0).toString());
+            insert.executeUpdate();
         }
     }
 

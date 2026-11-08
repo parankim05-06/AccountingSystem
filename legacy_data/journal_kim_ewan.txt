@@ -1,0 +1,4 @@
+1|02-11-2026|fawfafafaw|Owners drawing,EQUITY,500.0,0.0;cash,ASSET,0.0,500.0|false||false
+2|03-12-2026|nyewgnviuygs|cash,ASSET,200.0,0.0;revenue,EXPENSE,0.0,200.0|false||false
+3|03-11-2026|jdjg|revenue,ASSET,500.0,0.0;cash,EQUITY,0.0,500.0|false||false
+4|03-11-2026|strww|cash,ASSET,700.0,0.0;owners drawing,ASSET,0.0,700.0|false||false
