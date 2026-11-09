@@ -11,11 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 12-Column Worksheet (Columnar) with a frozen first column (Account Title).
- * Uses a custom FrozenTablePane to keep the first column fixed while the
- * remaining 12 columns scroll horizontally with perfect header/body alignment.
- */
 public class columnar extends JPanel {
 
     private journal journalRef;
@@ -364,97 +359,139 @@ public class columnar extends JPanel {
     }
 
     private class ColumnarHeader extends JTableHeader {
-        private final String[] groupNames = {"Trial balance", "Adjustments", "Adjusted trial balance", "Income statement", "Owner's equity", "Balance sheet"};
-        private final String[] subColumns = {"Debit", "Credit", "Debit", "Credit", "Debit", "Credit", "Debit", "Credit", "Debit", "Credit", "Debit", "Credit"};
+    private final String[] groupNames = {
+        "Trial balance",
+        "Adjustments",
+        "Adjusted trial balance",
+        "Income statement",
+        "Owner's equity",
+        "Balance sheet"
+    };
 
-        public ColumnarHeader(javax.swing.JTable table) {
-            super(table.getColumnModel());
-            setReorderingAllowed(false);
-            setResizingAllowed(false);
-        }
+    private final String[] subColumns = {
+        "Debit", "Credit",
+        "Debit", "Credit",
+        "Debit", "Credit",
+        "Debit", "Credit",
+        "Debit", "Credit",
+        "Debit", "Credit"
+    };
 
-        @Override
-        public Dimension getPreferredSize() {
-            Dimension d = super.getPreferredSize();
-            d.height = 44;
-            return d;
-        }
+    public ColumnarHeader(JTable table) {
+        super(table.getColumnModel());
+        setReorderingAllowed(false);
+        setResizingAllowed(false);
+        setOpaque(true);
+        setBackground(new Color(245, 245, 245));
+    }
 
-        @Override
-        public void paint(Graphics g) {
-            Graphics2D g2d = (Graphics2D) g.create();
-            try {
-                // Don't call super.paint() - we're drawing the entire header ourselves
+    @Override
+    public Dimension getPreferredSize() {
+        return new Dimension(super.getPreferredSize().width, 44);
+    }
 
-                javax.swing.table.TableColumnModel columnModel = getColumnModel();
-                int columnCount = columnModel.getColumnCount();
+    private void drawCenteredText(
+            Graphics2D g2,
+            String text,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
+        FontMetrics fm = g2.getFontMetrics();
 
-                // Draw top row: group names spanning 2 columns each
-                // 6 groups × 2 columns = 12 columns
-                Font topFont = appFont(Font.BOLD, 12);
-                g2d.setFont(topFont);
-                g2d.setColor(TEXT_DARK);
-                g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        int textX = x + (width - fm.stringWidth(text)) / 2;
+        int textY = y + (height - fm.getHeight()) / 2 + fm.getAscent();
 
-                int topY = 0;
-                int leftMargin = 0;
+        g2.drawString(text, textX, textY);
+    }
 
-                // Each group spans 2 columns
-                for (int grp = 0; grp < 6; grp++) {
-                    int groupStartCol = grp * 2;
-                    int groupWidth = 0;
-                    for (int c = groupStartCol; c < groupStartCol + 2; c++) {
-                        if (c < columnCount) {
-                            groupWidth += columnModel.getColumn(c).getWidth();
-                        }
-                    }
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
 
-                    // Calculate the x position for this group
-                    int x = leftMargin;
-                    for (int c = 0; c < groupStartCol; c++) {
-                        if (c < columnCount) {
-                            x += columnModel.getColumn(c).getWidth();
-                        }
-                    }
+        Graphics2D g2 = (Graphics2D) g.create();
 
-                    // Draw group name background and text
-                    g2d.setColor(new Color(245, 245, 245));
-                    g2d.fillRect(x, topY, groupWidth, 22);
-                    g2d.setColor(new Color(80, 80, 80));
-                    String groupName = groupNames[grp];
-                    FontMetrics fm = g2d.getFontMetrics();
-                    int textX = x + (groupWidth - fm.stringWidth(groupName)) / 2;
-                    int textY = topY + 14 - (fm.getDescent() - fm.getHeight()) / 2;
-                    g2d.drawString(groupName, textX, textY);
+        try {
+            g2.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON
+            );
 
-                    leftMargin += groupWidth;
-                }
+            g2.setRenderingHint(
+                RenderingHints.KEY_TEXT_ANTIALIASING,
+                RenderingHints.VALUE_TEXT_ANTIALIAS_ON
+            );
 
-                // Draw bottom row: Debit/Credit labels
-                Font bottomFont = appFont(Font.BOLD, 11);
-                g2d.setFont(bottomFont);
-                int bottomY = 22;
+            int topHeight = 22;
+            int bottomHeight = 22;
 
-                leftMargin = 0;
-                for (int c = 0; c < columnCount; c++) {
-                    int colWidth = columnModel.getColumn(c).getWidth();
-                    String label = subColumns[c];
+            int x = 0;
 
-                    g2d.setColor(new Color(245, 245, 245));
-                    g2d.fillRect(leftMargin, bottomY, colWidth, 22);
-                    g2d.setColor(new Color(80, 80, 80));
-                    FontMetrics fm = g2d.getFontMetrics();
-                    int textX = leftMargin + (colWidth - fm.stringWidth(label)) / 2;
-                    int textY = bottomY + 14 - (fm.getDescent() - fm.getHeight()) / 2;
-                    g2d.drawString(label, textX, textY);
+            // TOP ROW: GROUP HEADINGS
+            g2.setFont(appFont(Font.BOLD, 12));
 
-                    leftMargin += colWidth;
-                }
-            } finally {
-                g2d.dispose();
+            for (int group = 0; group < groupNames.length; group++) {
+                int firstColumn = group * 2;
+
+                int groupWidth =
+                    getColumnModel().getColumn(firstColumn).getWidth()
+                    + getColumnModel().getColumn(firstColumn + 1).getWidth();
+
+                g2.setColor(new Color(245, 245, 245));
+                g2.fillRect(x, 0, groupWidth, topHeight);
+
+                g2.setColor(new Color(80, 80, 80));
+
+                drawCenteredText(
+                    g2,
+                    groupNames[group],
+                    x,
+                    0,
+                    groupWidth,
+                    topHeight
+                );
+
+                g2.setColor(new Color(210, 210, 210));
+                g2.drawRect(x, 0, groupWidth, topHeight);
+
+                x += groupWidth;
             }
+
+            // BOTTOM ROW: DEBIT AND CREDIT
+            x = 0;
+
+            g2.setFont(appFont(Font.BOLD, 11));
+
+            for (int column = 0; column < subColumns.length; column++) {
+                int columnWidth =
+                    getColumnModel().getColumn(column).getWidth();
+
+                g2.setColor(new Color(245, 245, 245));
+                g2.fillRect(x, topHeight, columnWidth, bottomHeight);
+
+                g2.setColor(new Color(80, 80, 80));
+
+                drawCenteredText(
+                    g2,
+                    subColumns[column],
+                    x,
+                    topHeight,
+                    columnWidth,
+                    bottomHeight
+                );
+
+                g2.setColor(new Color(210, 210, 210));
+                g2.drawRect(x, topHeight, columnWidth, bottomHeight);
+
+                x += columnWidth;
+            }
+
+        } finally {
+            g2.dispose();
         }
     }
+}
 
     private String money(double amount) {
         if (Math.abs(amount) < 0.005) {
@@ -569,19 +606,27 @@ public class columnar extends JPanel {
             double oeDr = 0, oeCr = 0;
             double bsDr = 0, bsCr = 0;
 
+            // INCOME STATEMENT: preserve the account's actual adjusted
+            // debit or credit balance instead of duplicating one side.
             if (type.equals("INCOME") || type.equals("REVENUE")) {
                 isDr = atbDr;
-                isCr = atbDr;
+                isCr = atbCr;
             } else if (type.equals("EXPENSE")) {
                 isDr = atbDr;
-                isCr = atbDr;
-            } else if (isDrawingAccount(account)) {
+                isCr = atbCr;
+            }
+            // OWNER'S EQUITY: drawings normally carry a debit balance;
+            // capital/equity accounts normally carry a credit balance.
+            else if (isDrawingAccount(account)) {
                 oeDr = atbDr;
-                oeCr = atbDr;
-            } else if (type.equals("EQUITY") || type.equals("CAPITAL")) {
-                oeDr = atbCr;
                 oeCr = atbCr;
-            } else if (type.equals("ASSET") || type.equals("LIABILITY")) {
+            } else if (type.equals("EQUITY") || type.equals("CAPITAL")) {
+                oeDr = atbDr;
+                oeCr = atbCr;
+            }
+            // BALANCE SHEET: assets and liabilities retain their actual
+            // adjusted debit/credit balances.
+            else if (type.equals("ASSET") || type.equals("LIABILITY")) {
                 bsDr = atbDr;
                 bsCr = atbCr;
             }
@@ -826,6 +871,12 @@ datePicker.setDate(record.date);
             frozenScrollPane.getViewport().setBackground(Color.WHITE);
             frozenScrollPane.setPreferredSize(new Dimension(220, 0));
 
+            // Reserve the same 44-pixel header area above the frozen table
+            // as the custom two-row header above the financial table.
+            if (cornerComponent != null) {
+                frozenScrollPane.setColumnHeaderView(cornerComponent);
+            }
+
             syncVerticalScrolling();
             syncRowHeights();
 
@@ -863,7 +914,9 @@ datePicker.setDate(record.date);
         public void setCornerComponent(JComponent corner) {
             this.cornerComponent = corner;
             if (corner != null) {
-                mainScrollPane.setCorner(JScrollPane.UPPER_LEFT_CORNER, corner);
+                // The account-title header belongs above the frozen table,
+                // not in the main scroll pane's corner.
+                frozenScrollPane.setColumnHeaderView(corner);
             }
         }
 
