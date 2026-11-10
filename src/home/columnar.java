@@ -1,5 +1,7 @@
 package home;
 
+import ui.ReportExports;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -200,6 +202,33 @@ public class columnar extends JPanel {
         editAdjustmentBtn.setFocusPainted(false);
         editAdjustmentBtn.addActionListener(e -> editAdjustment());
 
+        // NEW: Export CSV buttons
+        JButton exportSheetBtn = new JButton("Export CSV");
+        exportSheetBtn.setBackground(Color.WHITE);
+        exportSheetBtn.setForeground(TEXT_DARK);
+        exportSheetBtn.setFont(appFont(Font.BOLD, 14));
+        exportSheetBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createEmptyBorder(8, 20, 8, 20)
+        ));
+        exportSheetBtn.setFocusPainted(false);
+        exportSheetBtn.addActionListener(e ->
+                ReportExports.exportWorksheet(this, accountTitleModel, tableModel));
+
+        JButton exportTbBtn = new JButton("Export Trial Balance");
+        exportTbBtn.setBackground(Color.WHITE);
+        exportTbBtn.setForeground(TEXT_DARK);
+        exportTbBtn.setFont(appFont(Font.BOLD, 14));
+        exportTbBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createEmptyBorder(8, 20, 8, 20)
+        ));
+        exportTbBtn.setFocusPainted(false);
+        exportTbBtn.addActionListener(e ->
+                ReportExports.exportTrialBalance(this, accountTitleModel, tableModel));
+
+        headerRight.add(exportSheetBtn);
+        headerRight.add(exportTbBtn);
         headerRight.add(refreshBtn);
         headerRight.add(editAdjustmentBtn);
 

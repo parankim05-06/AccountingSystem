@@ -1,5 +1,7 @@
 package home;
 
+import ui.ReportExports;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -178,8 +180,24 @@ public class ledger extends JPanel {
             buildLedgerTables();
         });
 
+        // NEW: Export CSV button
+        JButton exportBtn = new JButton("Export CSV");
+        exportBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        exportBtn.setBackground(Color.WHITE);
+        exportBtn.setForeground(Color.BLACK);
+        exportBtn.setFocusPainted(false);
+        exportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        exportBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 180, 180), 1),
+                new EmptyBorder(8, 20, 8, 20)));
+        exportBtn.addActionListener(e -> ReportExports.exportLedger(this, journalRef));
+        JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        headerButtons.setBackground(MAIN_BG);
+        headerButtons.add(exportBtn);
+        headerButtons.add(refreshBtn);
+
         header.add(title, BorderLayout.WEST);
-        header.add(refreshBtn, BorderLayout.EAST);
+        header.add(headerButtons, BorderLayout.EAST);
 
         return header;
     }
